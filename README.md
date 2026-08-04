@@ -1,3 +1,10 @@
+<img width="4096" height="1348" alt="POLARIS_banner_HD" src="https://github.com/user-attachments/assets/255490cc-8a05-40a4-8348-5a7381342a53" />
+
+
+
+
+
+
 POLARIS — AI-Powered MSME Business Intelligence Platform
 
 An AI financial copilot for Indian MSMEs (Micro, Small & Medium Enterprises) that turns scattered financial signals — bank balances, GST filings, receivables, supplier exposure, global macro events — into a single dashboard with actionable, data-grounded advice.
