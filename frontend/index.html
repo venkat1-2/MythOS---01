@@ -48,27 +48,481 @@ const API = (typeof window !== 'undefined' && window.location.origin.startsWith(
 ══════════════════════════════════════════════════════ */
 const SHARED_LABELS_MAP = {
   // Demo Data Risk Radar Metrics
-  "Customer Concentration": { plain: "How Much You Depend on Your Biggest Customer", tech: "Customer Concentration" },
-  "Debt Service Coverage (DSCR)": { plain: "Ability to Repay Loans from Current Income", tech: "Debt Service Coverage (DSCR)" },
-  "Inventory Aging (>60 Days)": { plain: "Old Inventory Sitting Unsold", tech: "Inventory Aging (>60 Days)" },
-  "Supplier Single-Source Risk": { plain: "Dependence on a Single Supplier", tech: "Supplier Concentration Risk" },
+  "Customer Concentration": { plain: "How Much You Depend on Your Biggest Customer", plain_ta: "மிகப்பெரிய வாடிக்கையாளரை நீங்கள் எந்தளவு சார்ந்துள்ளீர்கள்", tech: "Customer Concentration" },
+  "Debt Service Coverage (DSCR)": { plain: "Ability to Repay Loans from Current Income", plain_ta: "தற்போதைய வருமானத்திலிருந்து கடன் திருப்பிச் செலுத்தும் திறன்", tech: "Debt Service Coverage (DSCR)" },
+  "Inventory Aging (>60 Days)": { plain: "Old Inventory Sitting Unsold", plain_ta: "விற்கப்படாமல் தேங்கியுள்ள பழைய சரக்குகள்", tech: "Inventory Aging (>60 Days)" },
+  "Supplier Single-Source Risk": { plain: "Dependence on a Single Supplier", plain_ta: "ஒரே சப்ளையரை சார்ந்துள்ள ஆபத்து", tech: "Supplier Concentration Risk" },
+  "Supplier Single-Source Bottleneck": { plain: "Dependence on a Single Supplier", plain_ta: "ஒரே சப்ளையரை சார்ந்துள்ள ஆபத்து", tech: "Supplier Concentration Risk" },
   
   // My Business (CSV) Risk Radar Metrics
-  "Customer Revenue Concentration": { plain: "How Much You Depend on Your Biggest Customer", tech: "Customer Concentration" },
-  "Outflow-to-Inflow Pressure": { plain: "Monthly Spending vs Income Balance", tech: "Outflow-to-Inflow Pressure" },
-  "Cash Runway Vulnerability": { plain: "Risk of Running Out of Cash", tech: "Runway Vulnerability" },
+  "Customer Revenue Concentration": { plain: "How Much You Depend on Your Biggest Customer", plain_ta: "மிகப்பெரிய வாடிக்கையாளரை நீங்கள் எந்தளவு சார்ந்துள்ளீர்கள்", tech: "Customer Concentration" },
+  "Outflow-to-Inflow Pressure": { plain: "Monthly Spending vs Income Balance", plain_ta: "மாதாந்திர செலவு மற்றும் வருமான சமநிலை", tech: "Outflow-to-Inflow Pressure" },
+  "Cash Runway Vulnerability": { plain: "Risk of Running Out of Cash", plain_ta: "ரொக்க இருப்பு தீரும் ஆபத்து", tech: "Runway Vulnerability" },
 
   // Demo Data Loan Score Factors
-  "GST Filing Consistency": { plain: "Consistency of Tax Returns", tech: "GST Filing Consistency" },
-  "Overdue Invoice Ratio": { plain: "Percentage of Late Customer Payments", tech: "Overdue Invoice Ratio" },
-  "Bank Balance Stability (90-Day)": { plain: "Consistency of Cash in Bank", tech: "Bank Balance Stability" },
-  "Existing Debt Ratio (Solvency)": { plain: "Current Debt vs Income (Solvency)", tech: "Existing Debt Ratio" },
+  "GST Filing Consistency": { plain: "Consistency of Tax Returns", plain_ta: "வரி தாக்கல் தொடர்ச்சி", tech: "GST Filing Consistency" },
+  "Overdue Invoice Ratio": { plain: "Percentage of Late Customer Payments", plain_ta: "தாமதமான வாடிக்கையாளர் கட்டணங்களின் சதவீதம்", tech: "Overdue Invoice Ratio" },
+  "Bank Balance Stability (90-Day)": { plain: "Consistency of Cash in Bank", plain_ta: "வங்கியில் ரொக்க இருப்பின் நிலையான தன்மை", tech: "Bank Balance Stability" },
+  "Existing Debt Ratio (Solvency)": { plain: "Current Debt vs Income (Solvency)", plain_ta: "தற்போதைய கடன் மற்றும் வருமானம்", tech: "Existing Debt Ratio" },
 
   // My Business (CSV) Loan Score Factors
-  "Net Cashflow Stability": { plain: "Monthly Income vs Spending Balance", tech: "Net Cashflow Stability" },
-  "Debt Repayment Buffer": { plain: "Ability to Repay Loans", tech: "Debt Repayment Buffer" },
-  "Revenue Concentration": { plain: "How Much You Depend on Your Biggest Customer", tech: "Revenue Concentration" },
-  "Supplier Payment Pressure": { plain: "Pending Supplier Payments", tech: "Supplier Payment Pressure" }
+  "Net Cashflow Stability": { plain: "Monthly Income vs Spending Balance", plain_ta: "மாதாந்திர நிகர பணப்பாய்வு நிலைப்புத்தன்மை", tech: "Net Cashflow Stability" },
+  "Debt Repayment Buffer": { plain: "Ability to Repay Loans", plain_ta: "கடன் திருப்பிச் செலுத்தும் திறன்", tech: "Debt Repayment Buffer" },
+  "Revenue Concentration": { plain: "How Much You Depend on Your Biggest Customer", plain_ta: "மிகப்பெரிய வாடிக்கையாளரை நீங்கள் எந்தளவு சார்ந்துள்ளீர்கள்", tech: "Revenue Concentration" },
+  "Supplier Payment Pressure": { plain: "Pending Supplier Payments", plain_ta: "நிலுவையிலுள்ள சப்ளையர் கட்டணங்கள்", tech: "Supplier Payment Pressure" }
+};
+
+const SCHEME_CAT_MAP = {
+  ta: {
+    "Credit Support": "கடன் உதவி",
+    "Subsidies & Grants": "மானியங்கள் & உதவிகள்",
+    "Quality & Tech Upgradation": "தரம் & தொழில்நுட்ப மேம்பாடு",
+    "Production Linked Incentive": "உற்பத்தி சார்ந்த ஊக்குவிப்பு",
+    "Technology Upgradation": "தொழில்நுட்ப மேம்பாடு",
+    "Export Support": "ஏற்றுமதி உதவி",
+    "Loans & Credit": "கடன்கள் & கடன் உதவி",
+    "Grants & Subsidies": "மானியங்கள் & உதவிகள்",
+    "Technology & Certification": "தொழில்நுட்பம் & சான்றிதழ்",
+    "Women Entrepreneurs": "பெண் தொழில்முனைவோர்",
+    "General MSME": "பொது MSME",
+    "Export & Trade": "ஏற்றுமதி & வர்த்தகம்"
+  }
+};
+
+const STATUS_MAP = {
+  ta: {
+    "Highly Recommended": "மிகவும் பரிந்துரைக்கப்படுகிறது",
+    "Eligible": "தகுதியானது",
+    "Review Eligibility": "தகுதியை மதிப்பாய்வு செய்யவும்",
+    "Conditionally Eligible": "நிபந்தனையுடன் தகுதியானது",
+    "Requires Scaling": "வளர்ச்சி தேவைப்படுகிறது",
+    "Excellent": "மிகச்சிறந்தது",
+    "Good": "நன்று",
+    "Warning": "எச்சரிக்கை",
+    "Critical": "முக்கியமானது",
+    "Optimal": "சிறந்தது",
+    "Moderate": "மிதமான",
+    "High": "அதிகம்",
+    "Low Risk": "குறைந்த ஆபத்து",
+    "Moderate Risk": "மிதமான ஆபத்து",
+    "High Risk": "அதிக ஆபத்து",
+    "Prime MSME": "முன்னணி MSME",
+    "Standard Eligible": "நிலையான தகுதி",
+  }
+};
+
+const SEVERITY_MAP = {
+  ta: {
+    "high": "அதிக",
+    "medium": "மிதமான",
+    "low": "குறைந்த",
+    "HIGH": "அதிக",
+    "MEDIUM": "மிதமான",
+    "LOW": "குறைந்த"
+  }
+};
+
+const ALERT_TITLE_MAP = {
+  ta: {
+    "Staff Salary Outflow": "ஊழியர் சம்பள செலவு",
+    "Loan EMI Obligation": "கடன் EMI கடமை",
+    "Factory & Office Rent": "தொழிற்சாலை & அலுவலக வாடகை",
+    "Statutory Tax Payable": "சட்டப்பூர்வ வரி செலுத்தல்",
+    "Utility Power Bill": "மின்சார பயன்பாட்டு கட்டணம்",
+    "Key Vendor Payable": "முக்கிய சப்ளையர் செலுத்தல்",
+    "GST Payment Due — ₹3.4L": "GST கட்டணம் நிலுவை — ₹3.4L",
+    "Overdue Invoice — Apex Auto Corp": "நிலுவை விலைப்பட்டியல் — Apex Auto Corp"
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   LANGUAGE CONFIGURATION
+   To add a new language: add one entry to SUPPORTED_LANGUAGES
+   and one key with all translations to LABELS below.
+══════════════════════════════════════════════════════ */
+const SUPPORTED_LANGUAGES = [
+  { code: 'en', label: 'English', nativeLabel: 'English' },
+  { code: 'ta', label: 'Tamil',   nativeLabel: 'தமிழ்'   },
+];
+
+const LABELS = {
+  en: {
+    // Header / sidebar
+    appSubtitle:         'Business & Risk Intelligence',
+    activeBusinessLabel: 'Active Business',
+    profileDemo:         'Demo Data (Rajesh Eng)',
+    profileUploaded:     'My Uploaded Data',
+    dataProfile:         'Data Profile:',
+    healthIndex:         'Health Index:',
+    askCopilot:          'Ask Copilot',
+    fyQuarter:           'FY 2026-27 Q2',
+    apiConnected:        'FastAPI Connected',
+    apiConnecting:       'Connecting...',
+    csvSynced:           'CSV Synced Profile',
+    udyamDemo:           'UDYAM Active Demo',
+    // Tab names & descs
+    tabCashflow:         'Cash Flow',
+    tabCashflowDesc:     'Forecast & Runway',
+    tabRisk:             'Risk Radar',
+    tabRiskDesc:         'Business Risk Overview',
+    tabLoan:             'Loan Score',
+    tabLoanDesc:         'Loan Eligibility & Lenders',
+    tabSchemes:          'Scheme Finder',
+    tabSchemesDesc:      'Govt Grants & Free Money',
+    tabGlobalRisk:       'Global Risk Intel',
+    tabGlobalRiskDesc:   'Macro Events & Impact',
+    tabChat:             'Ask the AI Advisor',
+    tabChatDesc:         'Ask any business question',
+    // Dashboard suffix
+    dashboardSuffix:     'Dashboard',
+    // Cash Flow tab
+    cfTitle:             'Cash Flow',
+    cfKpi1:              'Current Bank Balance',
+    cfKpi2:              'Monthly Profit / Loss',
+    cfKpi3:              'How Long Money Will Last',
+    cfKpi4:              'Avg. Days Customers Take to Pay',
+    cfOverviewTitle:     '6-Month Income & Spending Overview',
+    cfOverviewSub:       'Total money in vs. money out, by month',
+    cfForecastTitle:     '30-Day Balance Forecast Engine',
+    cfForecastSub:       'Upload 90-day CSV · WMA projection · Threshold alert · Danger zone chart',
+    cfSampleCsv:         'Sample CSV',
+    cfLoadSample:        'Load Sample & Analyze',
+    cfAnalysing:         'Analysing…',
+    cfProfileSection:    'Business Profile — Enter Before Uploading',
+    cfBizName:           'Business Name',
+    cfKeyMaterials:      'Key Materials',
+    cfSupplierCountries: 'Supplier Countries',
+    cfSchemeProfile:     'Scheme Finder Profile',
+    cfSector:            'Sector',
+    cfBizType:           'Business Type',
+    cfState:             'State / UT',
+    cfWomenOwned:        'Women-owned business',
+    cfStandUp:           'Stand-Up India eligible',
+    cfExportOriented:    'Export-oriented business',
+    cfIesMda:            'IES / MDA eligible',
+    cfDropzone:          'Drop CSV or Photo of Ledger (PNG/JPG)',
+    cfDropzoneSub:       'Accepts CSV spreadsheets or paper ledger photos via Gemini Vision',
+    cfThresholdLabel:    'Safety Balance Threshold',
+    cfApply:             'Apply',
+    cfThresholdWarn:     'Balance Threshold Warning',
+    cfThresholdOk:       'Balance Stays Above Threshold',
+    cfWcTitle:           'Working Capital Position',
+    cfWcTag:             'Financial Estimates',
+    cfAR:                'Accounts Receivable',
+    cfARSub:             'Money customers owe',
+    cfAP:                'Accounts Payable',
+    cfAPSub:             'Pending supplier payments',
+    cfCash:              'Cash on Hand',
+    cfCashSub:           'Actual statement balance',
+    cfAlertsTitle:       'Upcoming Payment Warnings',
+    // Risk Radar tab
+    rrScoreLabel:        'Risk Score:',
+    // Loan Score tab
+    lsGaugeTitle:        'Your Loan Readiness Score',
+    lsFineTune:          'Fine-Tune Your Score Inputs',
+    lsRecalc:            'Recalculating...',
+    lsInput1:            'Tax Return Filing Rate',
+    lsInput1Tech:        '(GST Consistency)',
+    lsInput1Sub:         'Worth 30% · How regularly you file GST returns',
+    lsInput2:            '% of Unpaid Bills Past Due',
+    lsInput2Tech:        '(Overdue Ratio)',
+    lsInput2Sub:         'Worth 25% · Bills unpaid after 30 days',
+    lsInput3:            'How Steady Your Bank Balance Is',
+    lsInput3Sub:         'Worth 25% · How much your balance fluctuates month to month',
+    lsInput4:            'Current Loan Burden',
+    lsInput4Tech:        '(Debt Ratio)',
+    lsInput4Sub:         'Worth 20% · Your ability to repay existing loans',
+    lsTopDrag:           'Biggest Factor Hurting Your Score:',
+    lsTopDragSub:        'This is pulling your score down by',
+    lsTopDragPts:        'points out of a possible',
+    lsAllGood:           'All your financial signals are looking great! ✓',
+    lsBreakdownTitle:    'How Your Score Is Calculated',
+    lsBreakdownSub:      'Your score is built from 4 key financial signals',
+    lsTotal:             'Total:',
+    lsPointsScored:      'Points Scored',
+    lsOutOf:             'out of',
+    lsPts:               'pts',
+    lsReducing:          'Reducing score by',
+    lsFullPts:           'Full points earned ✓',
+    lsCountsFor:         'Counts for',
+    lsOfYourScore:       '% of your score',
+    lsStepsTitle:        'Steps to Improve Your Score',
+    lsLendersTitle:      'Banks & Lenders That May Approve You',
+    lsLendersInclNbfc:   'incl. NBFCs',
+    lsLikelyApprove:     '% likely to approve',
+    lsUpTo:              'Up to',
+    lsDocsTitle:         "Documents You'll Need to Apply",
+    lsDocsTag:           'Underwriting Checklist',
+    // Scheme Finder tab
+    sfTitle:             'Government Schemes & Subsidies',
+    sfSubtitle:          'Schemes matched to your business type & loan eligibility',
+    sfAllMatches:        'All Matches',
+    sfKeyBenefit:        'Key Benefit',
+    sfSector:            'Sector:',
+    sfGetHelp:           'Get Help Applying',
+    // Global Risk tab
+    lmiTitle:            'Live Market Indicators',
+    lmiLive:             'Live API Feeds',
+    lmiCached:           'Cached per session',
+    lmiFetching:         'Fetching live data...',
+    lmiUnavailable:      'Data Unavailable',
+    lmiApiOffline:       'API endpoint offline or restricted',
+    grTitle:             'Global Risk Intelligence',
+    grExposureTitle:     'What Your Business Is Exposed To',
+    grMaterials:         'Raw Materials You Use',
+    grSourceFrom:        'Where You Source From',
+    grCurrencies:        'Currencies You Deal In',
+    grExportTo:          'Countries You Sell To',
+    grDataSources:       'Data Sources',
+    grSkipped:           "Skipped — doesn't affect you",
+    grNone:              'No world events currently affecting your business — you\'re in the clear!',
+    grImpactTitle:       'Impact on Your Business',
+    grHowAffects:        'How This Affects You',
+    grPossibleEffect:    'Possible Effect on Your Business',
+    grWhatToDo:          'What You Should Do',
+    grCheckedEvents:     'Checked',
+    grWorldEvents:       'world events',
+    grAffect:            'affect your business',
+    grNotRelevant:       'not relevant to you',
+    grHighImpact:        'High Impact',
+    grMedium:            'Medium',
+    grOpportunity:       'Opportunity',
+    grUpdated:           'Updated',
+    grTagCurrency:       'Currency Impact:',
+    grTagCountry:        'Related Country:',
+    grTagAffects:        'Affects Your:',
+    // Chat tab
+    chatTitle:           'AI Business Advisor',
+    chatBadge:           'Gemini AI Copilot',
+    chatSubtitle:        'Ask anything about your money, loans, or business decisions',
+    chatClear:           'Clear Chat',
+    chatPlaceholder:     'Ask about hiring, loans, risks, purchases, or schemes...',
+    chatThinking:        'AI is processing...',
+    chatSend:            'Send',
+    chatLoading:         'Thinking...',
+    chatAnalyzing:       'Analyzing telemetry & generating advice…',
+    chatGreeting:        "Hello! I'm your AI Business Advisor. Ask me about hiring capacity, loan readiness, risk factors, large purchases, or government schemes.",
+    // Ledger modal
+    ledgerTitle:         'Review Extracted Ledger Transactions',
+    ledgerSub1:          'Gemini Vision extracted',
+    ledgerSub2:          'entries from',
+    ledgerEditSub:       'Edit, add, or delete entries before committing.',
+    ledgerColDate:       'Date (YYYY-MM-DD)',
+    ledgerColDesc:       'Description / Particulars',
+    ledgerColAmt:        'Amount (₹)',
+    ledgerColType:       'Type',
+    ledgerColConf:       'OCR Confidence',
+    ledgerColAction:     'Action',
+    ledgerInflow:        '+ INFLOW',
+    ledgerOutflow:       '- OUTFLOW',
+    ledgerLowConf:       '⚠️ Review Needed',
+    ledgerHighConf:      '✓ High',
+    ledgerAddRow:        'Add Transaction Line',
+    ledgerNote:          'Note: Outflows should be entered as negative numbers (e.g. -25000).',
+    ledgerCancel:        'Cancel',
+    ledgerConfirm:       'Confirm & Analyze',
+    // Error boundary
+    errTitle:            'Upload / Render Failure',
+    errMsg:              'Upload failed or an unexpected rendering error occurred:',
+    errReload:           'Reload Dashboard',
+    // Loading states
+    loadCashFlow:        'Loading Cash Flow Telemetry...',
+    loadRisk:            'Scanning Financial Health...',
+    loadLoan:            'Calculating your loan readiness...',
+    loadGlobal:          'Checking world events that could affect your business...',
+    // CIBIL label
+    cibilLabel:          'Bank Credit Score',
+    cibilEquiv:          '(CIBIL Equiv.)',
+  },
+
+  ta: {
+    // Header / sidebar
+    appSubtitle:         'வணிக & ஆபத்து நுண்ணறிவு',
+    activeBusinessLabel: 'செயலில் உள்ள வணிகம்',
+    profileDemo:         'டெமோ தரவு (ராஜேஷ் எஞ்ஜி)',
+    profileUploaded:     'என் பதிவேற்றிய தரவு',
+    dataProfile:         'தரவு சுயவிவரம்:',
+    healthIndex:         'ஆரோக்கிய குறியீடு:',
+    askCopilot:          'கோபைலட்டிடம் கேள்',
+    fyQuarter:           'நிதி ஆண்டு 2026-27 Q2',
+    apiConnected:        'API இணைக்கப்பட்டது',
+    apiConnecting:       'இணைக்கிறது...',
+    csvSynced:           'CSV ஒத்திசைக்கப்பட்டது',
+    udyamDemo:           'UDYAM டெமோ',
+    // Tab names & descs
+    tabCashflow:         'பணப்பாய்வு',
+    tabCashflowDesc:     'முன்னிறுத்தம் & ரன்வே',
+    tabRisk:             'ஆபத்து ரேடார்',
+    tabRiskDesc:         'வணிக ஆபத்து கண்ணோட்டம்',
+    tabLoan:             'கடன் மதிப்பெண்',
+    tabLoanDesc:         'கடன் தகுதி & கடன்தாரர்கள்',
+    tabSchemes:          'திட்டம் கண்டுபிடிப்பு',
+    tabSchemesDesc:      'அரசு மானியங்கள் & இலவச பணம்',
+    tabGlobalRisk:       'உலக ஆபத்து நுண்ணறிவு',
+    tabGlobalRiskDesc:   'மேக்ரோ நிகழ்வுகள் & தாக்கம்',
+    tabChat:             'AI ஆலோசகரிடம் கேளுங்கள்',
+    tabChatDesc:         'எந்த வணிக கேள்வியையும் கேளுங்கள்',
+    // Dashboard suffix
+    dashboardSuffix:     'டாஷ்போர்டு',
+    // Cash Flow tab
+    cfTitle:             'பணப்பாய்வு',
+    cfKpi1:              'தற்போதைய வங்கி இருப்பு',
+    cfKpi2:              'மாதாந்திர லாபம் / நஷ்டம்',
+    cfKpi3:              'பணம் எத்தனை நாள் நீடிக்கும்',
+    cfKpi4:              'வாடிக்கையாளர்கள் பணம் செலுத்த எடுக்கும் சராசரி நாட்கள்',
+    cfOverviewTitle:     '6 மாத வருமானம் & செலவு கண்ணோட்டம்',
+    cfOverviewSub:       'மாதத்திற்கு மொத்த வரவு மற்றும் செலவு',
+    cfForecastTitle:     '30 நாள் இருப்பு முன்னிறுத்த எந்திரம்',
+    cfForecastSub:       'CSV பதிவேற்று · WMA முன்னிறுத்தம் · வரம்பு எச்சரிக்கை',
+    cfSampleCsv:         'மாதிரி CSV',
+    cfLoadSample:        'மாதிரி ஏற்றி பகுப்பாய்வு செய்',
+    cfAnalysing:         'பகுப்பாய்வு நடக்கிறது...',
+    cfProfileSection:    'வணிக சுயவிவரம் — பதிவேற்றும் முன் உள்ளிடவும்',
+    cfBizName:           'வணிகப் பெயர்',
+    cfKeyMaterials:      'முக்கிய மூலப்பொருட்கள்',
+    cfSupplierCountries: 'சப்ளையர் நாடுகள்',
+    cfSchemeProfile:     'திட்டம் கண்டுபிடிப்பு சுயவிவரம்',
+    cfSector:            'துறை',
+    cfBizType:           'வணிக வகை',
+    cfState:             'மாநிலம் / யூடி',
+    cfWomenOwned:        'பெண்கள் சொந்தமான வணிகம்',
+    cfStandUp:           'ஸ்டாண்ட்-அப் இந்தியாவிற்கு தகுதியானது',
+    cfExportOriented:    'ஏற்றுமதி சார்ந்த வணிகம்',
+    cfIesMda:            'IES / MDA தகுதியானது',
+    cfDropzone:          'CSV அல்லது கணக்கு படத்தை (PNG/JPG) இங்கே போடுங்கள்',
+    cfDropzoneSub:       'CSV அல்லது காகித ஏட்டு படங்களை Gemini Vision மூலம் ஏற்கும்',
+    cfThresholdLabel:    'பாதுகாப்பு இருப்பு வரம்பு',
+    cfApply:             'பயன்படுத்து',
+    cfThresholdWarn:     'இருப்பு வரம்பு எச்சரிக்கை',
+    cfThresholdOk:       'இருப்பு வரம்பிற்கு மேலே உள்ளது',
+    cfWcTitle:           'செயல்பாட்டு மூலதன நிலை',
+    cfWcTag:             'நிதி மதிப்பீடுகள்',
+    cfAR:                'பெறத்தக்க கணக்குகள்',
+    cfARSub:             'வாடிக்கையாளர்கள் செலுத்த வேண்டியது',
+    cfAP:                'செலுத்த வேண்டிய கணக்குகள்',
+    cfAPSub:             'நிலுவையிலுள்ள சப்ளையர் கொடுப்பனவுகள்',
+    cfCash:              'கையில் உள்ள பணம்',
+    cfCashSub:           'உண்மையான கணக்கு இருப்பு',
+    cfAlertsTitle:       'வரவிருக்கும் கட்டண எச்சரிக்கைகள்',
+    // Risk Radar tab
+    rrScoreLabel:        'ஆபத்து மதிப்பெண்:',
+    // Loan Score tab
+    lsGaugeTitle:        'உங்கள் கடன் தயார்நிலை மதிப்பெண்',
+    lsFineTune:          'உங்கள் மதிப்பெண் தரவை சரிசெய்யுங்கள்',
+    lsRecalc:            'மீண்டும் கணக்கிடுகிறது...',
+    lsInput1:            'வரி தாக்கல் விகிதம்',
+    lsInput1Tech:        '(GST நிலைத்தன்மை)',
+    lsInput1Sub:         '30% மதிப்பு · GST தாக்கல் செய்யும் வழக்கமான விகிதம்',
+    lsInput2:            '% தாமதமான பில்கள்',
+    lsInput2Tech:        '(தாமத விகிதம்)',
+    lsInput2Sub:         '25% மதிப்பு · 30 நாட்களுக்கு மேல் செலுத்தாத பில்கள்',
+    lsInput3:            'வங்கி இருப்பு நிலைத்தன்மை',
+    lsInput3Sub:         '25% மதிப்பு · மாதாமாதம் இருப்பு எவ்வளவு மாறுகிறது',
+    lsInput4:            'தற்போதைய கடன் சுமை',
+    lsInput4Tech:        '(கடன் விகிதம்)',
+    lsInput4Sub:         '20% மதிப்பு · ஏற்கனவே உள்ள கடன்களை திருப்பிக் கொடுக்கும் திறன்',
+    lsTopDrag:           'மதிப்பெண்ணை அதிகம் குறைக்கும் காரணி:',
+    lsTopDragSub:        'இது உங்கள் மதிப்பெண்ணை குறைக்கிறது',
+    lsTopDragPts:        'புள்ளிகள், சாத்தியமான',
+    lsAllGood:           'உங்கள் அனைத்து நிதி சமிக்ஞைகளும் சிறப்பாக உள்ளன! ✓',
+    lsBreakdownTitle:    'உங்கள் மதிப்பெண் எப்படி கணக்கிடப்படுகிறது',
+    lsBreakdownSub:      'உங்கள் மதிப்பெண் 4 முக்கிய நிதி சமிக்ஞைகளிலிருந்து உருவாகிறது',
+    lsTotal:             'மொத்தம்:',
+    lsPointsScored:      'பெற்ற புள்ளிகள்',
+    lsOutOf:             'இல் இருந்து',
+    lsPts:               'புள்ளிகள்',
+    lsReducing:          'மதிப்பெண் குறைகிறது',
+    lsFullPts:           'முழு புள்ளிகள் பெற்றது ✓',
+    lsCountsFor:         'மதிப்பெண்ணில்',
+    lsOfYourScore:       '% பங்கு',
+    lsStepsTitle:        'மதிப்பெண்ணை மேம்படுத்த செய்ய வேண்டியவை',
+    lsLendersTitle:      'உங்களை அங்கீகரிக்கக்கூடிய வங்கிகள் & கடன்தாரர்கள்',
+    lsLendersInclNbfc:   'NBFC உட்பட',
+    lsLikelyApprove:     '% அங்கீகரிக்க வாய்ப்பு',
+    lsUpTo:              'வரை',
+    lsDocsTitle:         'விண்ணப்பிக்க தேவையான ஆவணங்கள்',
+    lsDocsTag:           'அண்டர்ரைட்டிங் சரிபார்ப்பு பட்டியல்',
+    // Scheme Finder tab
+    sfTitle:             'அரசு திட்டங்கள் & மானியங்கள்',
+    sfSubtitle:          'உங்கள் வணிக வகை & கடன் தகுதிக்கு பொருந்திய திட்டங்கள்',
+    sfAllMatches:        'அனைத்து பொருத்தங்கள்',
+    sfKeyBenefit:        'முக்கிய நலன்',
+    sfSector:            'துறை:',
+    sfGetHelp:           'விண்ணப்பிக்க உதவி பெறுங்கள்',
+    // Global Risk tab
+    lmiTitle:            'நேரடி சந்தை குறிகாட்டிகள்',
+    lmiLive:             'நேரடி API தரவு',
+    lmiCached:           'அமர்வுக்கு தேக்கிடப்பட்டது',
+    lmiFetching:         'நேரடி தரவு பெறுகிறது...',
+    lmiUnavailable:      'தரவு கிடைக்கவில்லை',
+    lmiApiOffline:       'API இணைப்பு இல்லை அல்லது தடுக்கப்பட்டது',
+    grTitle:             'உலக ஆபத்து நுண்ணறிவு',
+    grExposureTitle:     'உங்கள் வணிகம் என்னவற்றால் பாதிக்கப்படலாம்',
+    grMaterials:         'நீங்கள் பயன்படுத்தும் மூலப்பொருட்கள்',
+    grSourceFrom:        'நீங்கள் வாங்கும் இடங்கள்',
+    grCurrencies:        'நீங்கள் பயன்படுத்தும் நாணயங்கள்',
+    grExportTo:          'நீங்கள் விற்கும் நாடுகள்',
+    grDataSources:       'தரவு ஆதாரங்கள்',
+    grSkipped:           'தவிர்க்கப்பட்டது — உங்களுக்கு பொருந்தாதது',
+    grNone:              'தற்போது உங்கள் வணிகத்தை பாதிக்கும் உலக நிகழ்வுகள் இல்லை!',
+    grImpactTitle:       'உங்கள் வணிகத்தில் தாக்கம்',
+    grHowAffects:        'இது உங்களை எப்படி பாதிக்கிறது',
+    grPossibleEffect:    'உங்கள் வணிகத்தில் சாத்தியமான விளைவு',
+    grWhatToDo:          'நீங்கள் என்ன செய்ய வேண்டும்',
+    grCheckedEvents:     'சரிபார்க்கப்பட்டது',
+    grWorldEvents:       'உலக நிகழ்வுகள்',
+    grAffect:            'உங்கள் வணிகத்தை பாதிக்கும்',
+    grNotRelevant:       'உங்களுக்கு பொருத்தமில்லாதது',
+    grHighImpact:        'அதிக தாக்கம்',
+    grMedium:            'நடுத்தர தாக்கம்',
+    grOpportunity:       'வாய்ப்பு',
+    grUpdated:           'புதுப்பிக்கப்பட்டது',
+    grTagCurrency:       'நாணய தாக்கம்:',
+    grTagCountry:        'தொடர்புடைய நாடு:',
+    grTagAffects:        'பாதிக்கும் துறை:',
+    // Chat tab
+    chatTitle:           'AI வணிக ஆலோசகர்',
+    chatBadge:           'Gemini AI கோபைலட்',
+    chatSubtitle:        'உங்கள் பணம், கடன்கள் அல்லது வணிக முடிவுகளைப் பற்றி எதையும் கேளுங்கள்',
+    chatClear:           'உரையாடலை அழி',
+    chatPlaceholder:     'பணியமர்த்தல், கடன்கள், ஆபத்துகள், கொள்முதல் அல்லது திட்டங்களைப் பற்றி கேளுங்கள்...',
+    chatThinking:        'AI செயலாக்குகிறது...',
+    chatSend:            'அனுப்பு',
+    chatLoading:         'யோசிக்கிறது...',
+    chatAnalyzing:       'தரவை பகுப்பாய்வு செய்கிறது...',
+    chatGreeting:        'வணக்கம்! நான் உங்கள் AI வணிக ஆலோசகர். பணியமர்த்தல் திறன், கடன் தயார்நிலை, ஆபத்து காரணிகள், பெரிய கொள்முதல் அல்லது அரசு திட்டங்களைப் பற்றி என்னிடம் கேளுங்கள்.',
+    // Ledger modal
+    ledgerTitle:         'பிரிக்கப்பட்ட ஏட்டு பரிவர்த்தனைகளை மதிப்பாய்வு செய்யுங்கள்',
+    ledgerSub1:          'Gemini Vision பிரித்தெடுத்தது',
+    ledgerSub2:          'உள்ளீடுகள்',
+    ledgerEditSub:       'உறுதிப்படுத்துவதற்கு முன் திருத்தவும், சேர்க்கவும் அல்லது நீக்கவும்.',
+    ledgerColDate:       'தேதி (YYYY-MM-DD)',
+    ledgerColDesc:       'விளக்கம் / விவரம்',
+    ledgerColAmt:        'தொகை (₹)',
+    ledgerColType:       'வகை',
+    ledgerColConf:       'OCR நம்பகத்தன்மை',
+    ledgerColAction:     'செயல்',
+    ledgerInflow:        '+ வரவு',
+    ledgerOutflow:       '- செலவு',
+    ledgerLowConf:       '⚠️ மதிப்பாய்வு தேவை',
+    ledgerHighConf:      '✓ உயர்',
+    ledgerAddRow:        'பரிவர்த்தனை வரி சேர்க்க',
+    ledgerNote:          'குறிப்பு: செலவுகளை எதிர்மறை எண்களாக உள்ளிடவும் (எ.கா. -25000).',
+    ledgerCancel:        'ரத்து செய்',
+    ledgerConfirm:       'உறுதிப்படுத்தி பகுப்பாய்வு செய்',
+    // Error boundary
+    errTitle:            'பதிவேற்றம் / வழங்கல் பிழை',
+    errMsg:              'பதிவேற்றம் தோல்வியடைந்தது அல்லது எதிர்பாராத பிழை ஏற்பட்டது:',
+    errReload:           'டாஷ்போர்டை மீட்டமை',
+    // Loading states
+    loadCashFlow:        'பணப்பாய்வு தரவை ஏற்றுகிறது...',
+    loadRisk:            'நிதி ஆரோக்கியத்தை சரிபார்க்கிறது...',
+    loadLoan:            'கடன் தயார்நிலையை கணக்கிடுகிறது...',
+    loadGlobal:          'உங்கள் வணிகத்தை பாதிக்கக்கூடிய உலக நிகழ்வுகளை சரிபார்க்கிறது...',
+    // CIBIL label
+    cibilLabel:          'வங்கி கடன் மதிப்பெண்',
+    cibilEquiv:          '(CIBIL சமதுல்யம்)',
+  }
 };
 
 
@@ -101,6 +555,9 @@ const Icons = {
   Box:          Ic(<><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></>),
   X:            Ic(<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>),
   Globe:        Ic(<><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>),
+  Camera:       Ic(<><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></>),
+  Trash:        Ic(<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>),
+  Plus:         Ic(<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>),
 };
 
 /* ── Global App Configuration ── */
@@ -152,12 +609,12 @@ const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', {maximumFraction
 const fmtL = (n) => `₹${((n || 0)/100000).toFixed(2)} L`;
 
 const TABS = [
-  { id:'cashflow',    name:'Cash Flow',         Icon:Icons.TrendUp,  desc:'Forecast & Runway' },
-  { id:'risk',        name:'Risk Radar',        Icon:Icons.Shield,   desc:'Business Risk Overview' },
-  { id:'loan',        name:'Loan Score',        Icon:Icons.Award,    desc:'Loan Eligibility & Lenders' },
-  { id:'schemes',     name:'Scheme Finder',     Icon:Icons.Landmark, desc:'Govt Grants & Free Money' },
-  { id:'globalrisk',  name:'Global Risk Intel', Icon:Icons.Globe,    desc:'Macro Events & Impact' },
-  { id:'chat',        name:'Ask the AI Advisor',Icon:Icons.Chat,     desc:'Ask any business question' },
+  { id:'cashflow',    nameKey:'tabCashflow',     Icon:Icons.TrendUp,  descKey:'tabCashflowDesc' },
+  { id:'risk',        nameKey:'tabRisk',         Icon:Icons.Shield,   descKey:'tabRiskDesc' },
+  { id:'loan',        nameKey:'tabLoan',         Icon:Icons.Award,    descKey:'tabLoanDesc' },
+  { id:'schemes',     nameKey:'tabSchemes',      Icon:Icons.Landmark, descKey:'tabSchemesDesc' },
+  { id:'globalrisk',  nameKey:'tabGlobalRisk',   Icon:Icons.Globe,    descKey:'tabGlobalRiskDesc' },
+  { id:'chat',        nameKey:'tabChat',         Icon:Icons.Chat,     descKey:'tabChatDesc' },
 ];
 
 /* ══════════════════════════════════════════════════════
@@ -165,10 +622,13 @@ const TABS = [
 ══════════════════════════════════════════════════════ */
 function App() {
   const [tab, setTab] = useState('cashflow');
+  const [lang, setLang] = useState('en'); // 'en' | 'ta'
   const [health, setHealth] = useState(null);
   const [profileMode, setProfileMode] = useState('demo'); // 'demo' | 'uploaded'
   const [uploadedFull, setUploadedFull] = useState(null);
   const [uploadedFilename, setUploadedFilename] = useState(null);
+
+  const L = LABELS[lang] || LABELS.en;
 
   useEffect(() => {
     fetch(`${API}/health`).then(r=>r.json()).then(d=>setHealth(d.status==='ok')).catch(()=>setHealth(false));
@@ -190,7 +650,7 @@ function App() {
     ? uploadedFull.company_profile.name
     : "Rajesh Engineering Works";
 
-  const { Icon: HIcon } = TABS.find(t=>t.id===tab) || {};
+  const currentTabObj = TABS.find(t=>t.id===tab);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#090d16]">
@@ -203,29 +663,31 @@ function App() {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="font-bold text-sm text-white truncate" title={APP_CONFIG.name}>{APP_CONFIG.name}</h1>
-              <p className="text-[10px] text-slate-400">Business & Risk Intelligence</p>
+              <p className="text-[10px] text-slate-400">{L.appSubtitle}</p>
             </div>
           </div>
 
           <div className="p-4 mx-3 my-4 rounded-xl glass border border-slate-800/80">
-            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Business</div>
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{L.activeBusinessLabel}</div>
             <div className="font-semibold text-sm text-slate-200 mt-0.5 truncate">{currentBusinessName}</div>
             <span className="inline-flex items-center mt-2 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-              {profileMode === 'uploaded' ? 'CSV Synced Profile' : 'UDYAM Active Demo'}
+              {profileMode === 'uploaded' ? L.csvSynced : L.udyamDemo}
             </span>
           </div>
 
           <nav className="px-3 space-y-1">
-            {TABS.map(({ id, name, Icon, desc }) => {
+            {TABS.map(({ id, nameKey, Icon, descKey }) => {
               const active = tab === id;
+              const tabName = L[nameKey];
+              const tabDesc = L[descKey];
               return (
                 <button key={id} onClick={() => setTab(id)}
                   className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm transition-all duration-200 ${active ? 'bg-gradient-to-r from-emerald-600/90 to-emerald-700/80 text-white shadow-md border border-emerald-500/30' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'}`}>
                   <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-400'}`}/>
                   <div className="text-left">
-                    <div className="leading-none font-semibold">{name}</div>
-                    <div className={`text-[10px] mt-1 ${active ? 'text-emerald-100' : 'text-slate-500'}`}>{desc}</div>
+                    <div className="leading-none font-semibold">{tabName}</div>
+                    <div className={`text-[10px] mt-1 ${active ? 'text-emerald-100' : 'text-slate-500'}`}>{tabDesc}</div>
                   </div>
                 </button>
               );
@@ -237,7 +699,7 @@ function App() {
           <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-900/60 border border-slate-800">
             <div className="flex items-center gap-2.5">
               <div className={`w-2.5 h-2.5 rounded-full ${health ? 'bg-emerald-400 animate-pulse' : 'bg-amber-500'}`}></div>
-              <span className="text-xs font-medium text-slate-300">{health ? 'FastAPI Connected' : 'Connecting...'}</span>
+              <span className="text-xs font-medium text-slate-300">{health ? L.apiConnected : L.apiConnecting}</span>
             </div>
             <span className="text-[10px] text-slate-500 font-mono">{APP_CONFIG.version}</span>
           </div>
@@ -248,19 +710,19 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-slate-800/80 bg-[#0d1322]/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-slate-100">{TABS.find(t=>t.id===tab)?.name} Dashboard</h2>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">FY 2026-27 Q2</span>
+            <h2 className="text-lg font-bold text-slate-100">{currentTabObj ? L[currentTabObj.nameKey] : ''} {L.dashboardSuffix}</h2>
+            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">{L.fyQuarter}</span>
           </div>
 
-          {/* Business Profile Selector */}
           <div className="flex items-center gap-3">
+            {/* Business Profile Selector */}
             <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/80 rounded-xl p-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Data Profile:</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 px-2">{L.dataProfile}</span>
               <button
                 onClick={() => setProfileMode('demo')}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${profileMode === 'demo' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
               >
-                Demo Data (Rajesh Eng)
+                {L.profileDemo}
               </button>
               <button
                 onClick={() => {
@@ -271,28 +733,44 @@ function App() {
                 title={!uploadedFull ? 'Upload a CSV in Cash Flow tab first to unlock' : 'Click to view your CSV uploaded financial telemetry'}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition ${profileMode === 'uploaded' ? 'bg-teal-600 text-white' : 'text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed'}`}
               >
-                {uploadedFull ? uploadedFull.company_profile.name : 'My Uploaded Data'}
+                {uploadedFull ? uploadedFull.company_profile.name : L.profileUploaded}
               </button>
+            </div>
+
+            {/* Language Selector Dropdown */}
+            <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-700/80 rounded-xl px-2 py-1">
+              <span className="text-[10px] uppercase font-bold text-slate-400">🌐</span>
+              <select
+                value={lang}
+                onChange={e => setLang(e.target.value)}
+                className="bg-transparent text-xs font-bold text-slate-200 outline-none cursor-pointer"
+              >
+                {SUPPORTED_LANGUAGES.map(l => (
+                  <option key={l.code} value={l.code} className="bg-slate-900 text-slate-200">
+                    {l.nativeLabel}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-xs font-medium text-emerald-300">
               <Icons.Activity className="w-4 h-4 text-emerald-400"/>
-              <span>Health Index: <strong className="text-emerald-400">{profileMode === 'uploaded' && uploadedFull ? uploadedFull.company_profile.overall_health_index : 84}/100</strong></span>
+              <span>{L.healthIndex} <strong className="text-emerald-400">{profileMode === 'uploaded' && uploadedFull ? uploadedFull.company_profile.overall_health_index : 84}/100</strong></span>
             </div>
             <button onClick={() => setTab('chat')} className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium text-xs hover:opacity-90 transition-opacity">
-              <Icons.Sparkles className="w-4 h-4"/>Ask Copilot
+              <Icons.Sparkles className="w-4 h-4"/>{L.askCopilot}
             </button>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
           <ErrorBoundary>
-            {tab === 'cashflow'   && <CashFlowView profileMode={profileMode} uploadedFull={uploadedFull} onFullAnalysis={handleFullAnalysis} />}
-            {tab === 'risk'       && <RiskRadarView profileMode={profileMode} uploadedFull={uploadedFull} />}
-            {tab === 'loan'       && <LoanScoreView profileMode={profileMode} uploadedFull={uploadedFull} />}
-            {tab === 'schemes'    && <SchemeFinderView profileMode={profileMode} uploadedFull={uploadedFull} />}
-            {tab === 'globalrisk' && <GlobalRiskView profileMode={profileMode} uploadedFull={uploadedFull} />}
-            {tab === 'chat'       && <ChatView activeTab={tab} profileMode={profileMode} uploadedFull={uploadedFull} />}
+            {tab === 'cashflow'   && <CashFlowView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} onFullAnalysis={handleFullAnalysis} />}
+            {tab === 'risk'       && <RiskRadarView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
+            {tab === 'loan'       && <LoanScoreView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
+            {tab === 'schemes'    && <SchemeFinderView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
+            {tab === 'globalrisk' && <GlobalRiskView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
+            {tab === 'chat'       && <ChatView lang={lang} activeTab={tab} profileMode={profileMode} uploadedFull={uploadedFull} />}
           </ErrorBoundary>
         </main>
       </div>
@@ -301,9 +779,172 @@ function App() {
 }
 
 /* ══════════════════════════════════════════════════════
-   CASH FLOW TAB  (with CSV Forecasting Module)
+   LEDGER PHOTO REVIEW MODAL (Editable OCR Table)
 ══════════════════════════════════════════════════════ */
-function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
+function LedgerReviewModal({ lang, reviewData, onConfirm, onCancel }) {
+  if (!reviewData) return null;
+  const L = LABELS[lang] || LABELS.en;
+  const [rows, setRows] = useState(reviewData.rows || []);
+
+  const updateRow = (idx, field, val) => {
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: val } : r));
+  };
+
+  const deleteRow = (idx) => {
+    setRows(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const addRow = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setRows(prev => [...prev, { date: today, description: 'New Ledger Entry', amount: 0, confidence: 'high' }]);
+  };
+
+  const handleConfirm = () => {
+    if (rows.length === 0) {
+      alert('Please add at least one valid transaction row.');
+      return;
+    }
+    onConfirm(rows, reviewData.filename);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+      <div className="glass rounded-2xl border border-slate-700 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="p-5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+          <div>
+            <div className="text-base font-bold text-white flex items-center gap-2">
+              <Icons.Camera className="w-5 h-5 text-emerald-400"/>
+              {L.ledgerTitle}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {L.ledgerSub1} <span className="text-emerald-400 font-semibold">{rows.length} {L.ledgerSub2}</span> from <span className="text-slate-200 font-mono">{reviewData.filename}</span>. {L.ledgerEditSub}
+            </p>
+          </div>
+          <button onClick={onCancel} className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">
+            <Icons.X className="w-5 h-5"/>
+          </button>
+        </div>
+
+        {/* Scrollable Table */}
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
+            <table className="w-full text-left text-xs text-slate-200 border-collapse">
+              <thead>
+                <tr className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                  <th className="p-3">#</th>
+                  <th className="p-3">{L.ledgerColDate}</th>
+                  <th className="p-3">{L.ledgerColDesc}</th>
+                  <th className="p-3 text-right">{L.ledgerColAmt}</th>
+                  <th className="p-3 text-center">{L.ledgerColType}</th>
+                  <th className="p-3 text-center">{L.ledgerColConf}</th>
+                  <th className="p-3 text-center">{L.ledgerColAction}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {rows.map((r, idx) => {
+                  const isInflow = (r.amount || 0) >= 0;
+                  const isLowConf = (r.confidence || '').toLowerCase() === 'low';
+                  return (
+                    <tr key={idx} className={isLowConf ? 'bg-amber-950/20 hover:bg-amber-950/30' : 'hover:bg-slate-900/50'}>
+                      <td className="p-3 text-slate-500 font-mono text-[11px]">{idx + 1}</td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={r.date}
+                          onChange={e => updateRow(idx, 'date', e.target.value)}
+                          className="w-32 bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-2.5 py-1 text-xs text-white outline-none font-mono"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={r.description}
+                          onChange={e => updateRow(idx, 'description', e.target.value)}
+                          className="w-full min-w-[200px] bg-slate-900 border border-slate-700 focus:border-emerald-500 rounded-lg px-2.5 py-1 text-xs text-white outline-none"
+                        />
+                      </td>
+                      <td className="p-2 text-right">
+                        <input
+                          type="number"
+                          step="any"
+                          value={r.amount}
+                          onChange={e => updateRow(idx, 'amount', parseFloat(e.target.value) || 0)}
+                          className={`w-32 bg-slate-900 border text-right focus:border-emerald-500 rounded-lg px-2.5 py-1 text-xs font-mono outline-none ${
+                            isInflow ? 'text-emerald-400 border-emerald-900/50' : 'text-red-400 border-red-900/50'
+                          }`}
+                        />
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isInflow ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'
+                        }`}>
+                          {isInflow ? L.ledgerInflow : L.ledgerOutflow}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center whitespace-nowrap">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center justify-center gap-1 ${
+                          isLowConf ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-emerald-950/60 text-emerald-400 border border-emerald-900/40'
+                        }`}>
+                          {isLowConf ? L.ledgerLowConf : L.ledgerHighConf}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => deleteRow(idx)}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition"
+                          title="Delete row"
+                        >
+                          <Icons.Trash className="w-4 h-4"/>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            onClick={addRow}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition"
+          >
+            <Icons.Plus className="w-3.5 h-3.5 text-emerald-400"/>
+            {L.ledgerAddRow}
+          </button>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between gap-4">
+          <div className="text-xs text-slate-400">
+            {L.ledgerNote}
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+            >
+              {L.ledgerCancel}
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2"
+            >
+              <Icons.Sparkles className="w-4 h-4"/>
+              {L.ledgerConfirm} ({rows.length} Rows)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   CASH FLOW TAB  (with CSV & Ledger Photo Module)
+══════════════════════════════════════════════════════ */
+function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
+  const L = LABELS[lang] || LABELS.en;
   const [summary, setSummary] = useState(null);
   const [forecast, setForecast] = useState(null);      // CSV forecast result
   const [threshold, setThreshold] = useState(500000);
@@ -312,10 +953,17 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
   const [dragOver, setDragOver] = useState(false);
   const [csvFilename, setCsvFilename] = useState(null);
   const [error, setError] = useState(null);
+  const [ledgerReviewData, setLedgerReviewData] = useState(null);
   // Upload-time business metadata
   const [businessName, setBusinessName] = useState('');
   const [keyMaterials, setKeyMaterials] = useState('');
   const [supplierCountries, setSupplierCountries] = useState('');
+  // Scheme-finder profile fields
+  const [sector, setSector] = useState('');
+  const [businessType, setBusinessType] = useState('manufacturing');
+  const [businessState, setBusinessState] = useState('');
+  const [womenOwned, setWomenOwned] = useState(false);
+  const [exportOriented, setExportOriented] = useState(false);
 
   // chart refs
   const overviewChartRef = useRef(null);
@@ -327,6 +975,53 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
   useEffect(() => {
     fetch(`${API}/cash-flow`).then(r=>r.json()).then(setSummary).catch(console.error);
   }, []);
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    setUploading(true); setError(null);
+    try {
+      const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp)$/i.test(file.name);
+      if (isImage) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${API}/cash-flow/analyze-ledger-photo`, {
+          method: 'POST',
+          body: form
+        });
+        if (!res.ok) {
+          throw new Error(`Server returned HTTP ${res.status}: ${res.statusText}`);
+        }
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+        } else if (data.transactions && data.transactions.length > 0) {
+          setLedgerReviewData({
+            filename: file.name,
+            rows: data.transactions
+          });
+        } else {
+          setError('No valid transactions extracted from photo.');
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = e => submitCSV(e.target.result, file.name);
+        reader.readAsText(file);
+      }
+    } catch (e) {
+      console.error('[FILE UPLOAD ERROR]', e);
+      setError(`File Processing Error: ${e.message || e}`);
+    }
+    setUploading(false);
+  };
+
+  const confirmLedgerTransactions = (editedRows, filename) => {
+    const csvHeader = "date,description,amount";
+    const csvLines = editedRows.map(r => `${r.date},"${(r.description || '').replace(/"/g, '""')}",${r.amount}`);
+    const csvText = [csvHeader, ...csvLines].join("\n");
+
+    setLedgerReviewData(null);
+    submitCSV(csvText, `[Ledger Photo] ${filename}`);
+  };
 
   const activeSummary = (profileMode === 'uploaded' && uploadedFull) ? uploadedFull.cash_flow : summary;
 
@@ -473,6 +1168,11 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
       const form = new FormData();
       form.append('csv_text', text);
       form.append('threshold', threshold.toString());
+      form.append('sector', sector.trim());
+      form.append('business_type', businessType || 'manufacturing');
+      form.append('state', businessState.trim());
+      form.append('women_owned', womenOwned ? 'true' : 'false');
+      form.append('export_oriented', exportOriented ? 'true' : 'false');
       
       const res = await fetch(`${API}/cash-flow/analyze-csv-full`, { method:'POST', body: form });
       if (!res.ok) {
@@ -499,10 +1199,10 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
           },
           global_exposure: {
             name: resolvedName,
-            sector: 'Business (CSV Uploaded)',
+            sector: sector.trim() || 'Business (CSV Uploaded)',
             materials: parsedMaterials,
             supplier_countries: parsedCountries,
-            export_markets: [],
+            export_markets: exportOriented ? ['global'] : [],
             currency_exposure: parsedCountries.includes('usa') || parsedCountries.includes('us') ? ['usd', 'inr'] : ['inr'],
             energy_dependent: false,
             logistics_modes: ['road']
@@ -550,7 +1250,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
     await submitCSV(window._lastCsvText, csvFilename || 'sample_transactions_90d.csv');
   };
 
-  if (!activeSummary) return <div className="p-8 text-center text-slate-400">Loading Cash Flow Telemetry...</div>;
+  if (!activeSummary) return <div className="p-8 text-center text-slate-400">{L.loadCashFlow}</div>;
 
   const s = activeSummary.summary || activeSummary;
   const wc = activeSummary.working_capital || {};
@@ -560,10 +1260,10 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
       {/* ── KPI cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label:'Current Bank Balance', value: fmtL(s.current_balance), sub: s.starting_balance ? `${s.current_balance >= s.starting_balance ? '+' : ''}${(((s.current_balance - s.starting_balance)/s.starting_balance)*100).toFixed(1)}% change since start` : 'Based on 90-day statement', Icon:Icons.Wallet, color:'text-emerald-400' },
-          { label:'Monthly Profit / Loss', value:`${s.net_cashflow>=0?'+':''}${fmtL(s.net_cashflow)}`, sub:`Money in: ${fmtL(s.monthly_inflow)} · Out: ${fmtL(s.monthly_outflow)}`, Icon:Icons.TrendUp, color:'text-teal-400' },
-          { label:'How Long Money Will Last', value:`${s.runway_months} Months`, sub: s.runway_months >= 3 ? 'Comfortable (>3 months)' : 'Low — action needed (<3 mo)', Icon:Icons.Clock, color:'text-indigo-400' },
-          { label:'Avg. Days Customers Take to Pay', value:`${wc.dso_days} Days`, sub:`Days Sales Outstanding (DSO)`, Icon:Icons.Hourglass, color:'text-amber-400' },
+          { label: L.cfKpi1, value: fmtL(s.current_balance), sub: s.starting_balance ? `${s.current_balance >= s.starting_balance ? '+' : ''}${(((s.current_balance - s.starting_balance)/s.starting_balance)*100).toFixed(1)}% change since start` : 'Based on 90-day statement', Icon:Icons.Wallet, color:'text-emerald-400' },
+          { label: L.cfKpi2, value:`${s.net_cashflow>=0?'+':''}${fmtL(s.net_cashflow)}`, sub:`Money in: ${fmtL(s.monthly_inflow)} · Out: ${fmtL(s.monthly_outflow)}`, Icon:Icons.TrendUp, color:'text-teal-400' },
+          { label: L.cfKpi3, value:`${s.runway_months} Months`, sub: s.runway_months >= 3 ? 'Comfortable (>3 months)' : 'Low — action needed (<3 mo)', Icon:Icons.Clock, color:'text-indigo-400' },
+          { label: L.cfKpi4, value:`${wc.dso_days} Days`, sub:`Days Sales Outstanding (DSO)`, Icon:Icons.Hourglass, color:'text-amber-400' },
         ].map(({ label, value, sub, Icon, color }) => (
           <div key={label} className="glass glass-h p-5 rounded-2xl">
             <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
@@ -577,8 +1277,8 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
 
       {/* ── Overview chart ── */}
       <div className="glass p-6 rounded-2xl">
-        <h3 className="text-base font-bold text-white mb-1">6-Month Income & Spending Overview</h3>
-        <p className="text-xs text-slate-400 mb-4">Total money in vs. money out, by month</p>
+        <h3 className="text-base font-bold text-white mb-1">{L.cfOverviewTitle}</h3>
+        <p className="text-xs text-slate-400 mb-4">{L.cfOverviewSub}</p>
         <div className="h-64"><canvas ref={overviewChartRef}></canvas></div>
       </div>
 
@@ -590,16 +1290,16 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Icons.Activity className="w-5 h-5 text-emerald-400"/>
-              30-Day Balance Forecast Engine
+              {L.cfForecastTitle}
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Upload 90-day CSV · WMA projection · Threshold alert · Danger zone chart</p>
+            <p className="text-xs text-slate-400 mt-0.5">{L.cfForecastSub}</p>
           </div>
           <div className="flex gap-2 shrink-0">
             <button onClick={downloadSample} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition">
-              <Icons.Download className="w-3.5 h-3.5"/>Sample CSV
+              <Icons.Download className="w-3.5 h-3.5"/>{L.cfSampleCsv}
             </button>
             <button onClick={loadSample} disabled={uploading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold transition disabled:opacity-50">
-              <Icons.Sparkles className="w-3.5 h-3.5"/>{uploading ? 'Analysing…' : 'Load Sample & Analyze'}
+              <Icons.Sparkles className="w-3.5 h-3.5"/>{uploading ? L.cfAnalysing : L.cfLoadSample}
             </button>
           </div>
         </div>
@@ -609,11 +1309,13 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
           <div className="glass rounded-xl p-5 border border-slate-800 space-y-4">
             <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
               <Icons.Activity className="w-4 h-4 text-emerald-400"/>
-              Business Profile — Enter Before Uploading
+              {L.cfProfileSection}
             </div>
+
+            {/* Row 1: existing Global Risk Intel fields */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Business Name</label>
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfBizName}</label>
                 <input
                   type="text"
                   value={businessName}
@@ -623,7 +1325,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Key Materials</label>
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfKeyMaterials}</label>
                 <input
                   type="text"
                   value={keyMaterials}
@@ -633,7 +1335,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Supplier Countries</label>
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfSupplierCountries}</label>
                 <input
                   type="text"
                   value={supplierCountries}
@@ -643,6 +1345,110 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                 />
               </div>
             </div>
+
+            {/* Divider */}
+            <div className="border-t border-slate-800/70 pt-1">
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">{L.cfSchemeProfile}</p>
+            </div>
+
+            {/* Row 2: Scheme Finder fields */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfSector}</label>
+                <select
+                  value={sector}
+                  onChange={e => setSector(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white outline-none transition appearance-none cursor-pointer"
+                >
+                  <option value="">— Select sector —</option>
+                  <option value="textile">Textile &amp; Apparel</option>
+                  <option value="food processing">Food Processing</option>
+                  <option value="auto components">Auto Components</option>
+                  <option value="electronics">Electronics</option>
+                  <option value="chemicals">Chemicals</option>
+                  <option value="handicraft">Handicrafts</option>
+                  <option value="it software">IT / Software Services</option>
+                  <option value="agro">Agro-based</option>
+                  <option value="pharma">Pharma</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfBizType}</label>
+                <select
+                  value={businessType}
+                  onChange={e => setBusinessType(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white outline-none transition appearance-none cursor-pointer"
+                >
+                  <option value="manufacturing">Manufacturing</option>
+                  <option value="service">Service</option>
+                  <option value="trading">Trading</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{L.cfState}</label>
+                <select
+                  value={businessState}
+                  onChange={e => setBusinessState(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 focus:border-emerald-500 rounded-xl px-3 py-2 text-sm text-white outline-none transition appearance-none cursor-pointer"
+                >
+                  <option value="">— Pan-India —</option>
+                  <option value="andhra pradesh">Andhra Pradesh</option>
+                  <option value="assam">Assam</option>
+                  <option value="bihar">Bihar</option>
+                  <option value="chhattisgarh">Chhattisgarh</option>
+                  <option value="delhi">Delhi</option>
+                  <option value="goa">Goa</option>
+                  <option value="gujarat">Gujarat</option>
+                  <option value="haryana">Haryana</option>
+                  <option value="himachal pradesh">Himachal Pradesh</option>
+                  <option value="jharkhand">Jharkhand</option>
+                  <option value="karnataka">Karnataka</option>
+                  <option value="kerala">Kerala</option>
+                  <option value="madhya pradesh">Madhya Pradesh</option>
+                  <option value="maharashtra">Maharashtra</option>
+                  <option value="manipur">Manipur</option>
+                  <option value="meghalaya">Meghalaya</option>
+                  <option value="odisha">Odisha</option>
+                  <option value="punjab">Punjab</option>
+                  <option value="rajasthan">Rajasthan</option>
+                  <option value="tamil nadu">Tamil Nadu</option>
+                  <option value="telangana">Telangana</option>
+                  <option value="uttar pradesh">Uttar Pradesh</option>
+                  <option value="uttarakhand">Uttarakhand</option>
+                  <option value="west bengal">West Bengal</option>
+                  <option value="other">Other / UT</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Row 3: Checkboxes */}
+            <div className="flex flex-wrap gap-6 pt-1">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                <div
+                  onClick={() => setWomenOwned(v => !v)}
+                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                    womenOwned ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 bg-slate-900 group-hover:border-emerald-500/60'
+                  }`}
+                >
+                  {womenOwned && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <span className="text-sm text-slate-300 font-medium">{L.cfWomenOwned}</span>
+                <span className="text-[10px] text-emerald-500 font-semibold">{L.cfStandUp}</span>
+              </label>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                <div
+                  onClick={() => setExportOriented(v => !v)}
+                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                    exportOriented ? 'bg-emerald-500 border-emerald-500' : 'border-slate-600 bg-slate-900 group-hover:border-emerald-500/60'
+                  }`}
+                >
+                  {exportOriented && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <span className="text-sm text-slate-300 font-medium">{L.cfExportOriented}</span>
+                <span className="text-[10px] text-emerald-500 font-semibold">{L.cfIesMda}</span>
+              </label>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -651,21 +1457,37 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
               style={{ minHeight:'140px' }}
               onDragOver={e=>{e.preventDefault();setDragOver(true);}}
               onDragLeave={()=>setDragOver(false)}
-              onDrop={e=>{e.preventDefault();setDragOver(false);const file = e.dataTransfer.files[0]; const reader = new FileReader(); reader.onload = e => submitCSV(e.target.result, file.name); reader.readAsText(file);}}
+              onDrop={e=>{e.preventDefault();setDragOver(false);if(e.dataTransfer.files?.[0]) handleFileUpload(e.dataTransfer.files[0]);}}
               onClick={()=>document.getElementById('csv-file-input').click()}
             >
-              <input id="csv-file-input" type="file" accept=".csv,text/csv" className="hidden"
-                onChange={e=>{const file = e.target.files[0]; const reader = new FileReader(); reader.onload = e => submitCSV(e.target.result, file.name); reader.readAsText(file);}}/>
-              <Icons.Upload className="w-8 h-8 text-emerald-400"/>
+              <input id="csv-file-input" type="file" accept=".csv,text/csv,image/png,image/jpeg,image/jpg" className="hidden"
+                onChange={e=>{if(e.target.files?.[0]) handleFileUpload(e.target.files[0]);}}/>
+              <div className="flex items-center gap-2 text-emerald-400">
+                <Icons.Upload className="w-7 h-7"/>
+                <Icons.Camera className="w-7 h-7 text-teal-400"/>
+              </div>
               {csvFilename
-                ? <div className="text-center"><div className="text-sm font-semibold text-emerald-400">✓ File loaded</div></div>
-                : <div className="text-center"><div className="text-sm font-semibold text-slate-200">Drop CSV here or click to browse</div></div>
+                ? <div className="text-center"><div className="text-sm font-semibold text-emerald-400">✓ {csvFilename}</div></div>
+                : (
+                  <div className="text-center">
+                    <div className="text-sm font-semibold text-slate-200">{L.cfDropzone}</div>
+                    <div className="text-[11px] text-slate-400 mt-1">{L.cfDropzoneSub}</div>
+                  </div>
+                )
               }
             </div>
 
+            {/* Ledger Photo Review Modal (opens after OCR extraction) */}
+            <LedgerReviewModal
+              lang={lang}
+              reviewData={ledgerReviewData}
+              onConfirm={confirmLedgerTransactions}
+              onCancel={() => setLedgerReviewData(null)}
+            />
+
             <div className="glass rounded-xl p-5 space-y-4 border border-slate-800">
               <div>
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">Safety Balance Threshold</label>
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">{L.cfThresholdLabel}</label>
               </div>
               <div className="flex gap-2">
                 <div className="relative flex-1">
@@ -676,7 +1498,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                 </div>
                 <button onClick={()=>{applyThreshold();setTimeout(reanalyze,0);}}
                   className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">
-                  Apply
+                  {L.cfApply}
                 </button>
               </div>
             </div>
@@ -697,7 +1519,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                     <Icons.AlertTriangle className="w-5 h-5 text-red-400"/>
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-red-300">Balance Threshold Warning</div>
+                    <div className="text-sm font-bold text-red-300">{L.cfThresholdWarn}</div>
                     <div className="text-sm text-red-200 mt-1">{activeForecast.first_breach.message}</div>
                   </div>
                 </div>
@@ -705,7 +1527,7 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
                 <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-700/40 flex items-center gap-4">
                   <Icons.ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0"/>
                   <div>
-                    <div className="text-sm font-bold text-emerald-300">Balance Stays Above Threshold</div>
+                    <div className="text-sm font-bold text-emerald-300">{L.cfThresholdOk}</div>
                   </div>
                 </div>
               )}
@@ -719,14 +1541,14 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="glass p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-white">Working Capital Position</h3>
-            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">Financial Estimates</span>
+            <h3 className="text-base font-bold text-white">{L.cfWcTitle}</h3>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">{L.cfWcTag}</span>
           </div>
           <div className="space-y-3">
             {[
-              { label:'Accounts Receivable', sub: 'Money customers owe', val: fmtL(wc.accounts_receivable), Icon:Icons.ArrowDown, valColor:'text-emerald-400' },
-              { label:'Accounts Payable', sub: 'Pending supplier payments', val: fmtL(wc.accounts_payable), Icon:Icons.ArrowUp, valColor:'text-red-400' },
-              { label:'Cash on Hand', sub: 'Actual statement balance', val: fmtL(wc.cash_on_hand || s.current_balance), Icon:Icons.Wallet, valColor:'text-slate-200' },
+              { label: L.cfAR, sub: L.cfARSub, val: fmtL(wc.accounts_receivable), Icon:Icons.ArrowDown, valColor:'text-emerald-400' },
+              { label: L.cfAP, sub: L.cfAPSub, val: fmtL(wc.accounts_payable), Icon:Icons.ArrowUp, valColor:'text-red-400' },
+              { label: L.cfCash, sub: L.cfCashSub, val: fmtL(wc.cash_on_hand || s.current_balance), Icon:Icons.Wallet, valColor:'text-slate-200' },
             ].map(({ label, sub, val, Icon, valColor }) => (
               <div key={label} className="flex justify-between items-center p-3 rounded-xl bg-slate-900/60 border border-slate-800">
                 <div className="flex items-center gap-3">
@@ -743,14 +1565,14 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
         </div>
 
         <div className="glass p-6 rounded-2xl">
-          <h3 className="text-base font-bold text-white mb-4">Upcoming Payment Warnings</h3>
+          <h3 className="text-base font-bold text-white mb-4">{L.cfAlertsTitle}</h3>
           <div className="space-y-3">
             {(activeSummary?.alerts || []).map(a => (
               <div key={a.id} className="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${a.severity==='high'?'bg-red-950 text-red-400':'bg-amber-950 text-amber-400'}`}>{a.severity}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${a.severity==='high'?'bg-red-950 text-red-400':'bg-amber-950 text-amber-400'}`}>{(lang==='ta' && SEVERITY_MAP.ta[a.severity]) ? SEVERITY_MAP.ta[a.severity] : a.severity}</span>
                 </div>
-                <h4 className="font-semibold text-sm text-slate-100 mt-2">{a.title}</h4>
+                <h4 className="font-semibold text-sm text-slate-100 mt-2">{(lang==='ta' && ALERT_TITLE_MAP.ta[a.title]) ? ALERT_TITLE_MAP.ta[a.title] : a.title}</h4>
               </div>
             ))}
           </div>
@@ -763,37 +1585,48 @@ function CashFlowView({ profileMode, uploadedFull, onFullAnalysis }) {
 /* ══════════════════════════════════════════════════════
    RISK RADAR
 ══════════════════════════════════════════════════════ */
-function RiskRadarView({ profileMode, uploadedFull }) {
+function RiskRadarView({ lang, profileMode, uploadedFull }) {
+  const L = LABELS[lang] || LABELS.en;
   const [data, setData] = useState(null);
-  useEffect(()=>{ fetch(`${API}/risk-radar`).then(r=>r.json()).then(setData); },[]);
+  useEffect(()=>{ fetch(`${API}/risk-radar?lang=${lang}`).then(r=>r.json()).then(setData); },[lang]);
   const activeData = (profileMode === 'uploaded' && uploadedFull) ? uploadedFull.risk_radar : data;
-  if (!activeData) return <div className="p-8 text-center text-slate-400">Scanning Financial Health...</div>;
+  if (!activeData) return <div className="p-8 text-center text-slate-400">{L.loadRisk}</div>;
   const d = activeData;
 
   const CAT_MAP = {
-    "Revenue Risk": "Customer Income Risk",
-    "Solvency Risk": "Bill & Debt Repayment Risk",
-    "Operational Risk": "Daily Cash Buffer Risk"
+    "Revenue Risk": lang === 'ta' ? "வருவாய் ஆபத்து" : "Customer Income Risk",
+    "Solvency Risk": lang === 'ta' ? "கடன் ஆபத்து" : "Bill & Debt Repayment Risk",
+    "Operational Risk": lang === 'ta' ? "செயல்பாட்டு ஆபத்து" : "Daily Cash Buffer Risk"
   };
+
+  const riskLevelText = (lang === 'ta' && STATUS_MAP.ta[d.risk_level]) ? STATUS_MAP.ta[d.risk_level] : d.risk_level;
 
   return (
     <div className="space-y-6">
       <div className="glass p-6 rounded-2xl border-l-4 border-l-emerald-500">
-        <h3 className="text-lg font-bold text-white">{d.risk_level}</h3>
-        <p className="text-xs text-slate-400">Risk Score: {d.overall_score}/100</p>
+        <h3 className="text-lg font-bold text-white">{riskLevelText}</h3>
+        <p className="text-xs text-slate-400">{L.rrScoreLabel} {d.overall_score}/100</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {(d.metrics || []).map((m, idx) => {
           const mapped = SHARED_LABELS_MAP[m.name];
-          const plainName = mapped ? mapped.plain : m.name;
+          const plainName = mapped ? (lang === 'ta' ? (mapped.plain_ta || mapped.plain) : mapped.plain) : m.name;
           const techName = mapped ? mapped.tech : null;
           const catName = CAT_MAP[m.category] || m.category;
+          const statusText = (lang === 'ta' && STATUS_MAP.ta[m.status]) ? STATUS_MAP.ta[m.status] : m.status;
 
           return (
-            <div key={idx} className="glass p-6 rounded-2xl">
-              <h4 className="text-base font-bold text-white">{plainName}</h4>
-              <p className="text-xs text-slate-400 mt-2">{m.details}</p>
+            <div key={idx} className="glass p-6 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-bold text-white">{plainName}</h4>
+                <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                  m.status === 'Optimal' || m.status === 'Good' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                  m.status === 'Warning' || m.status === 'Moderate' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                  'bg-red-500/10 text-red-400 border border-red-500/20'
+                }`}>{statusText}</span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">{m.details}</p>
             </div>
           );
         })}
@@ -805,7 +1638,8 @@ function RiskRadarView({ profileMode, uploadedFull }) {
 /* ══════════════════════════════════════════════════════
    LOAN SCORE
 ══════════════════════════════════════════════════════ */
-function LoanGaugeChart({ score, maxScore = 100, tier, cibilEquiv }) {
+function LoanGaugeChart({ lang, score, maxScore = 100, tier, cibilEquiv }) {
+  const L = LABELS[lang] || LABELS.en;
   const pct = Math.min(100, Math.max(0, score)) / maxScore;
   const color = score >= 85 ? '#22c55e' : score >= 70 ? '#14b8a6' : score >= 50 ? '#f59e0b' : '#ef4444';
   
@@ -844,23 +1678,24 @@ function LoanGaugeChart({ score, maxScore = 100, tier, cibilEquiv }) {
           {score.toFixed(1)}
         </text>
         <text x="100" y="98" textAnchor="middle" fill="#94a3b8" className="text-xs font-sans" style={{ fontSize: '11px' }}>
-          OUT OF {maxScore}
+          {L.lsOutOf} {maxScore}
         </text>
       </svg>
       
       <div className="text-center mt-1">
         <span className="inline-block px-3 py-0.5 rounded-full text-xs font-bold border" style={{ backgroundColor: `${color}15`, color: color, borderColor: `${color}40` }}>
-          {tier}
+          {(lang === 'ta' && STATUS_MAP.ta[tier]) ? STATUS_MAP.ta[tier] : tier}
         </span>
         <div className="text-xs text-slate-400 mt-1 font-medium">
-          Bank Credit Score <span className="text-slate-600">(CIBIL Equiv.)</span>: <strong className="text-white font-bold">{cibilEquiv} / 900</strong>
+          {L.cibilLabel} <span className="text-slate-600">{L.cibilEquiv}</span>: <strong className="text-white font-bold">{cibilEquiv} / 900</strong>
         </div>
       </div>
     </div>
   );
 }
 
-function LoanScoreView({ profileMode, uploadedFull }) {
+function LoanScoreView({ lang, profileMode, uploadedFull }) {
+  const L = LABELS[lang] || LABELS.en;
   const [data, setData] = useState(null);
   const [inputs, setInputs] = useState({
     gst_filing_score: 90,
@@ -871,7 +1706,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
   const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
-    fetch(`${API}/loan-score`)
+    fetch(`${API}/loan-score?lang=${lang}`)
       .then(r => r.json())
       .then(d => {
         setData(d);
@@ -880,13 +1715,13 @@ function LoanScoreView({ profileMode, uploadedFull }) {
         }
       })
       .catch(console.error);
-  }, []);
+  }, [lang]);
 
   const recalculate = useCallback(async (newInputs) => {
     setInputs(newInputs);
     setCalculating(true);
     try {
-      const res = await fetch(`${API}/loan-score/calculate`, {
+      const res = await fetch(`${API}/loan-score/calculate?lang=${lang}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newInputs)
@@ -903,10 +1738,10 @@ function LoanScoreView({ profileMode, uploadedFull }) {
       console.error(e);
     }
     setCalculating(false);
-  }, []);
+  }, [lang]);
 
   const activeData = (profileMode === 'uploaded' && uploadedFull) ? uploadedFull.loan_score : data;
-  if (!activeData || !activeData.calculation) return <div className="p-8 text-center text-slate-400">Calculating your loan readiness...</div>;
+  if (!activeData || !activeData.calculation) return <div className="p-8 text-center text-slate-400">{L.loadLoan}</div>;
 
   const d = activeData;
   const calc = d.calculation;
@@ -914,9 +1749,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
   const topDrag = calc.top_drag_factor;
   const suggestions = calc.suggested_actions || [];
 
-
-
-  const topDragName = topDrag?.name ? (SHARED_LABELS_MAP[topDrag.name]?.plain || topDrag.name) : '';
+  const topDragName = topDrag?.name ? ((SHARED_LABELS_MAP[topDrag.name] && (lang === 'ta' ? (SHARED_LABELS_MAP[topDrag.name].plain_ta || SHARED_LABELS_MAP[topDrag.name].plain) : SHARED_LABELS_MAP[topDrag.name].plain)) || topDrag.name) : '';
 
   return (
     <div className="space-y-6">
@@ -924,8 +1757,9 @@ function LoanScoreView({ profileMode, uploadedFull }) {
       <div className="glass p-6 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-6 items-center border border-slate-800">
         {/* Gauge Chart Column */}
         <div className="flex flex-col items-center border-b md:border-b-0 md:border-r border-slate-800 pb-4 md:pb-0 md:pr-4">
-          <div className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-2">Your Loan Readiness Score</div>
+          <div className="text-xs uppercase font-bold text-slate-400 tracking-wider mb-2">{L.lsGaugeTitle}</div>
           <LoanGaugeChart
+            lang={lang}
             score={calc.overall_score}
             maxScore={100}
             tier={calc.score_tier}
@@ -938,16 +1772,16 @@ function LoanScoreView({ profileMode, uploadedFull }) {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Icons.Activity className="w-4 h-4 text-emerald-400" />
-              Fine-Tune Your Score Inputs
+              {L.lsFineTune}
             </h3>
-            {calculating && <span className="text-[10px] text-emerald-400 animate-pulse">Recalculating...</span>}
+            {calculating && <span className="text-[10px] text-emerald-400 animate-pulse">{L.lsRecalc}</span>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Input 1: GST Filing Consistency */}
             <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">Tax Return Filing Rate <span className="text-slate-600">(GST Consistency)</span></span>
+                <span className="text-slate-300 font-semibold">{L.lsInput1} <span className="text-slate-600">{L.lsInput1Tech}</span></span>
                 <span className="font-bold text-emerald-400">{inputs.gst_filing_score}%</span>
               </div>
               <input
@@ -958,13 +1792,13 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                 onChange={e => recalculate({ ...inputs, gst_filing_score: parseFloat(e.target.value) })}
                 className="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
               />
-              <div className="text-[10px] text-slate-500">Worth 30% · How regularly you file GST returns</div>
+              <div className="text-[10px] text-slate-500">{L.lsInput1Sub}</div>
             </div>
 
             {/* Input 2: Overdue Invoice Ratio */}
             <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">% of Unpaid Bills Past Due <span className="text-slate-600">(Overdue Ratio)</span></span>
+                <span className="text-slate-300 font-semibold">{L.lsInput2} <span className="text-slate-600">{L.lsInput2Tech}</span></span>
                 <span className={`font-bold ${inputs.overdue_invoice_ratio > 20 ? 'text-red-400' : 'text-emerald-400'}`}>{inputs.overdue_invoice_ratio}%</span>
               </div>
               <input
@@ -976,13 +1810,13 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                 onChange={e => recalculate({ ...inputs, overdue_invoice_ratio: parseFloat(e.target.value) })}
                 className="w-full accent-emerald-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
               />
-              <div className="text-[10px] text-slate-500">Worth 25% · Bills unpaid after 30 days</div>
+              <div className="text-[10px] text-slate-500">{L.lsInput2Sub}</div>
             </div>
 
             {/* Input 3: Bank Balance Stability */}
             <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">How Steady Your Bank Balance Is</span>
+                <span className="text-slate-300 font-semibold">{L.lsInput3}</span>
                 <span className="font-bold text-teal-400">{inputs.bank_stability_score}/100</span>
               </div>
               <input
@@ -993,13 +1827,13 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                 onChange={e => recalculate({ ...inputs, bank_stability_score: parseFloat(e.target.value) })}
                 className="w-full accent-teal-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
               />
-              <div className="text-[10px] text-slate-500">Worth 25% · How much your balance fluctuates month to month</div>
+              <div className="text-[10px] text-slate-500">{L.lsInput3Sub}</div>
             </div>
 
             {/* Input 4: Existing Debt Ratio */}
             <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-slate-300 font-semibold">Current Loan Burden <span className="text-slate-600">(Debt Ratio)</span></span>
+                <span className="text-slate-300 font-semibold">{L.lsInput4} <span className="text-slate-600">{L.lsInput4Tech}</span></span>
                 <span className="font-bold text-indigo-400">{inputs.debt_ratio_score}/100</span>
               </div>
               <input
@@ -1010,7 +1844,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                 onChange={e => recalculate({ ...inputs, debt_ratio_score: parseFloat(e.target.value) })}
                 className="w-full accent-indigo-500 bg-slate-800 h-1.5 rounded-lg cursor-pointer"
               />
-              <div className="text-[10px] text-slate-500">Worth 20% · Your ability to repay existing loans</div>
+              <div className="text-[10px] text-slate-500">{L.lsInput4Sub}</div>
             </div>
           </div>
         </div>
@@ -1024,17 +1858,17 @@ function LoanScoreView({ profileMode, uploadedFull }) {
           </div>
           <div>
             <h4 className="text-sm font-bold text-amber-300">
-              Biggest Factor Hurting Your Score: <span className="text-white">{topDragName}</span>
+              {L.lsTopDrag} <span className="text-white">{topDragName}</span>
             </h4>
             <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-              This is pulling your score down by <strong className="text-amber-400">-{topDrag.drag_penalty} points</strong> out of a possible {topDrag.max_contrib}.
+              {L.lsTopDragSub} <strong className="text-amber-400">-{topDrag.drag_penalty} {L.lsTopDragPts}</strong> {topDrag.max_contrib}.
             </p>
           </div>
         </div>
       ) : (
         <div className="glass p-4 rounded-2xl border-l-4 border-l-emerald-500 flex items-center gap-3 bg-emerald-950/20">
           <Icons.ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
-          <div className="text-xs text-emerald-300 font-medium">All your financial signals are looking great! ✓</div>
+          <div className="text-xs text-emerald-300 font-medium">{L.lsAllGood}</div>
         </div>
       )}
 
@@ -1042,19 +1876,20 @@ function LoanScoreView({ profileMode, uploadedFull }) {
       <div className="glass p-6 rounded-2xl border border-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-base font-bold text-white">How Your Score Is Calculated</h3>
-            <p className="text-xs text-slate-400">Your score is built from 4 key financial signals</p>
+            <h3 className="text-base font-bold text-white">{L.lsBreakdownTitle}</h3>
+            <p className="text-xs text-slate-400">{L.lsBreakdownSub}</p>
           </div>
           <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-slate-900 text-slate-300 border border-slate-800">
-            Total: <strong>{calc.overall_score}</strong> / 100
+            {L.lsTotal} <strong>{calc.overall_score}</strong> / 100
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {factors.map((f, idx) => {
             const mapped = SHARED_LABELS_MAP[f.name];
-            const plainName = mapped ? mapped.plain : f.name;
+            const plainName = mapped ? (lang === 'ta' ? (mapped.plain_ta || mapped.plain) : mapped.plain) : f.name;
             const techName = mapped ? mapped.tech : null;
+            const statusText = (lang === 'ta' && STATUS_MAP.ta[f.status]) ? STATUS_MAP.ta[f.status] : f.status;
 
             return (
               <div key={idx} className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-3">
@@ -1062,7 +1897,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                   <div>
                     <span className="text-xs font-bold text-slate-200">{plainName}</span>
                     {techName && <div className="text-[10px] text-slate-500">({techName})</div>}
-                    <div className="text-[10px] text-slate-400">Counts for {f.weight_pct}% of your score</div>
+                    <div className="text-[10px] text-slate-400">{L.lsCountsFor} {f.weight_pct}{L.lsOfYourScore}</div>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                     f.status === 'Excellent' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
@@ -1070,15 +1905,15 @@ function LoanScoreView({ profileMode, uploadedFull }) {
                     f.status === 'Warning' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
                     'bg-red-500/10 text-red-400 border border-red-500/20'
                   }`}>
-                    {f.status} ({f.score}/100)
+                    {statusText} ({f.score}/100)
                   </span>
                 </div>
 
               {/* Progress bar */}
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-400">Points Scored</span>
-                  <span className="font-bold text-white">{f.weighted_contrib} out of {f.max_contrib} pts</span>
+                  <span className="text-slate-400">{L.lsPointsScored}</span>
+                  <span className="font-bold text-white">{f.weighted_contrib} {L.lsOutOf} {f.max_contrib} {L.lsPts}</span>
                 </div>
                 <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden">
                   <div
@@ -1095,9 +1930,9 @@ function LoanScoreView({ profileMode, uploadedFull }) {
               <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/60">
                 <span>{f.detail}</span>
                 {f.drag_penalty > 0 ? (
-                  <span className="text-amber-400 font-semibold">Reducing score by -{f.drag_penalty} pts</span>
+                  <span className="text-amber-400 font-semibold">{L.lsReducing} -{f.drag_penalty} {L.lsPts}</span>
                 ) : (
-                  <span className="text-emerald-400 font-semibold">Full points earned ✓</span>
+                  <span className="text-emerald-400 font-semibold">{L.lsFullPts}</span>
                 )}
               </div>
             </div>
@@ -1110,7 +1945,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
       <div className="glass p-6 rounded-2xl border border-slate-800">
         <h3 className="text-base font-bold text-white mb-4 flex items-center gap-2">
           <Icons.Sparkles className="w-5 h-5 text-emerald-400" />
-          Steps to Improve Your Score
+          {L.lsStepsTitle}
         </h3>
         <div className="space-y-3">
           {suggestions.map((sug, i) => (
@@ -1126,16 +1961,16 @@ function LoanScoreView({ profileMode, uploadedFull }) {
 
       {/* ── Matched Banking & NBFC Offers ── */}
       <div className="glass p-6 rounded-2xl">
-        <h3 className="text-base font-bold text-white mb-4">Banks & Lenders That May Approve You <span className="text-slate-600 text-xs font-normal ml-1">incl. NBFCs</span></h3>
+        <h3 className="text-base font-bold text-white mb-4">{L.lsLendersTitle} <span className="text-slate-600 text-xs font-normal ml-1">{L.lsLendersInclNbfc}</span></h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {(d.matched_lenders || []).map((l, i) => (
             <div key={i} className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-emerald-500/40 transition">
               <div className="flex items-center justify-between">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{l.approval_probability}% likely to approve</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{l.approval_probability}{L.lsLikelyApprove}</span>
                 <span className="text-xs font-bold text-teal-300">{l.interest_rate}</span>
               </div>
               <h4 className="font-bold text-sm text-white mt-3">{l.name}</h4>
-              <div className="text-lg font-extrabold text-slate-200 mt-1">Up to ₹{(l.max_amount / 100000).toFixed(0)}L</div>
+              <div className="text-lg font-extrabold text-slate-200 mt-1">{L.lsUpTo} ₹{(l.max_amount / 100000).toFixed(0)}L</div>
               <p className="text-xs text-slate-400 mt-2">{l.collateral_required}</p>
             </div>
           ))}
@@ -1144,7 +1979,7 @@ function LoanScoreView({ profileMode, uploadedFull }) {
 
       {/* ── Underwriting Document Checklist ── */}
       <div className="glass p-6 rounded-2xl">
-        <h3 className="text-base font-bold text-white mb-4">Documents You'll Need to Apply <span className="text-slate-600 text-xs font-normal ml-1">Underwriting Checklist</span></h3>
+        <h3 className="text-base font-bold text-white mb-4">{L.lsDocsTitle} <span className="text-slate-600 text-xs font-normal ml-1">{L.lsDocsTag}</span></h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {(d.document_readiness || []).map((doc, i) => (
             <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800">
@@ -1156,60 +1991,6 @@ function LoanScoreView({ profileMode, uploadedFull }) {
             </div>
           ))}
         </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════
-   SCHEME FINDER
-══════════════════════════════════════════════════════ */
-function SchemeFinderView({ profileMode, uploadedFull }) {
-  const [schemes, setSchemes] = useState([]);
-  const [filter, setFilter] = useState('all');
-  useEffect(()=>{ fetch(`${API}/scheme-finder`).then(r=>r.json()).then(d=>setSchemes(d.schemes)); },[]);
-
-  const activeSchemes = (profileMode === 'uploaded' && uploadedFull?.scheme_finder?.schemes)
-    ? uploadedFull.scheme_finder.schemes
-    : schemes;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
-        <div>
-          <h3 className="text-base font-bold text-white">Government Schemes & Subsidies</h3>
-          <p className="text-xs text-slate-400">Schemes matched to your business type & loan eligibility</p>
-        </div>
-        <div className="flex gap-2">
-          {['all','credit','subsidy'].map(f=>(
-            <button key={f} onClick={()=>setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filter===f?'bg-emerald-600 text-white':'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>
-              {f==='all'?'All Matches':f==='credit'?'Credit Support':'Capital Subsidies'}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {activeSchemes.map(sch=>(
-          <div key={sch.id} className="glass glass-h p-6 rounded-2xl flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">{sch.match_percentage}% — you likely qualify</span>
-                <span className="text-[11px] font-semibold text-slate-400">{sch.category}</span>
-              </div>
-              <h4 className="text-lg font-bold text-white mt-3 leading-snug">{sch.title}</h4>
-              <p className="text-xs text-slate-400 mt-1">{sch.ministry}</p>
-              <div className="my-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Key Benefit</div>
-                <div className="text-sm font-bold text-teal-300 mt-0.5">{sch.max_benefit}</div>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">{sch.subsidy_nature}</p>
-            </div>
-            <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">Who it's for: {sch.target_sector}</span>
-              <button className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">Get Help Applying</button>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -1240,7 +2021,8 @@ function renderFormattedText(text) {
   });
 }
 
-function ChatView({ activeTab, profileMode, uploadedFull }) {
+function ChatView({ lang, activeTab, profileMode, uploadedFull }) {
+  const L = LABELS[lang] || LABELS.en;
 
   /* ── 1. Fetch demo-profile data once (for when profileMode === 'demo') ── */
   const [demoLoan,   setDemoLoan]   = useState(null);
@@ -1350,7 +2132,7 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
 
     /* Fallback — unmatched */
     return {
-      text: `This demo runs in offline mode with pre-built responses for common questions (hiring, loans, risk, purchases, schemes) to keep it fast and reliable during judging - the production version connects to live Claude API reasoning for open-ended questions.`,
+      text: `This demo runs in offline fallback mode with pre-built responses for common questions (hiring, loans, risk, purchases, schemes) to keep it fast and reliable - the live version connects to Gemini API reasoning for open-ended questions.`,
       insights: [],
       suggested: ['Can I hire 3 more employees?', 'What is my loan readiness score?', 'What are my biggest risks?']
     };
@@ -1363,7 +2145,7 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
     const lscore  = loanSrc?.calculation?.overall_score?.toFixed(0);
     return {
       sender: 'assistant',
-      text: "Hello! I'm your AI Business Advisor. Ask me about hiring capacity, loan readiness, risk factors, large purchases, or government schemes.",
+      text: L.chatGreeting,
       insights: [
         balance != null ? `Balance: ${fmtL(balance)}`       : 'Balance: loading...',
         runway  != null ? `Money lasts: ${runway} months`   : 'Runway: loading...',
@@ -1385,23 +2167,74 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
         return prev;
       });
     }
-  }, [cashSrc, loanSrc]);
+  }, [cashSrc, loanSrc, lang]);
 
-  const [input, setInput]   = useState('');
+  const [input, setInput]     = useState('');
+  const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
 
-  /* ── 6. Send handler — pure offline ── */
-  const send = (textToSend) => {
+  /* ── 6. Send handler — tries live /api/chat first, falls back to buildAnswer ── */
+  const send = async (textToSend) => {
     const query = (textToSend || input).trim();
-    if (!query) return;
+    if (!query || loading) return;
     setInput('');
+    setLoading(true);
 
     const userMsg = { sender: 'user', text: query };
-    const answer  = buildAnswer(query);
-    const botMsg  = { sender: 'assistant', ...answer };
+    const tempBotMsg = { sender: 'assistant', text: '', loading: true };
 
-    setMessages(prev => [...prev, userMsg, botMsg]);
+    // Append user query and temporary loading bubble
+    setMessages(prev => [...prev, userMsg, tempBotMsg]);
+
+    let botMsg = null;
+
+    try {
+      // Format history for backend API
+      const historyPayload = messages
+        .filter(m => !m.loading && m.text)
+        .map(m => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text
+        }));
+
+      const res = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: query,
+          active_tab: activeTab || 'cashflow',
+          history: historyPayload,
+          language: lang,
+          profile_data: (profileMode === 'uploaded' && uploadedFull) ? uploadedFull : null
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      botMsg = {
+        sender: 'assistant',
+        text: data.response || 'No response received from AI advisor.',
+        insights: data.insights || [],
+        suggested: data.suggested_actions || []
+      };
+    } catch (err) {
+      console.warn('[COPILOT CHAT] API call failed or server offline, using rule-based fallback:', err);
+      const offlineAnswer = buildAnswer(query);
+      botMsg = { sender: 'assistant', ...offlineAnswer };
+    }
+
+    // Replace loading placeholder with final message
+    setMessages(prev => prev.map(m => m.loading ? botMsg : m));
+    setLoading(false);
   };
 
   const clearThread = () => setMessages([buildGreeting()]);
@@ -1416,10 +2249,10 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
           </div>
           <div>
             <div className="font-bold text-sm text-white flex items-center gap-2">
-              AI Business Advisor
-              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-full font-mono">Offline · No API key needed</span>
+              {L.chatTitle}
+              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-full font-mono">{L.chatBadge}</span>
             </div>
-            <div className="text-[10px] text-slate-400">Ask anything about your money, loans, or business decisions</div>
+            <div className="text-[10px] text-slate-400">{L.chatSubtitle}</div>
           </div>
         </div>
         <button
@@ -1427,7 +2260,7 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
           className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition"
           title="Clear the chat"
         >
-          Clear Chat
+          {L.chatClear}
         </button>
       </div>
 
@@ -1440,10 +2273,19 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
                 ? 'bg-emerald-600 text-white rounded-br-none shadow-md'
                 : 'bg-slate-900/90 border border-slate-800 text-slate-200 rounded-bl-none shadow-lg'
             }`}>
-              {renderFormattedText(m.text)}
+              {m.loading ? (
+                <div className="flex items-center gap-2 py-1 text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse delay-150"></span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse delay-300"></span>
+                  <span className="text-xs text-slate-400 ml-1 font-medium">{L.chatAnalyzing}</span>
+                </div>
+              ) : (
+                renderFormattedText(m.text)
+              )}
 
               {/* Insight chips */}
-              {m.insights && m.insights.length > 0 && (
+              {!m.loading && m.insights && m.insights.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap gap-1.5">
                   {m.insights.map((ins, idx) => (
                     <span key={idx} className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
@@ -1455,13 +2297,14 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
             </div>
 
             {/* Quick follow-up chips */}
-            {m.suggested && m.suggested.length > 0 && i === messages.length - 1 && (
+            {!m.loading && m.suggested && m.suggested.length > 0 && i === messages.length - 1 && (
               <div className="flex flex-wrap gap-2 mt-2.5 max-w-2xl">
                 {m.suggested.map((sug, idx) => (
                   <button
                     key={idx}
+                    disabled={loading}
                     onClick={() => send(sug)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-800 hover:border-emerald-500/40 transition shadow-sm"
+                    className="text-xs px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-800 hover:border-emerald-500/40 transition shadow-sm disabled:opacity-50"
                   >
                     💬 {sug}
                   </button>
@@ -1478,19 +2321,96 @@ function ChatView({ activeTab, profileMode, uploadedFull }) {
         <input
           type="text"
           value={input}
+          disabled={loading}
           onChange={e => setInput(e.target.value)}
-          placeholder="Ask about hiring, loans, risks, purchases, or schemes..."
-          className="flex-1 bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white placeholder-slate-500 outline-none transition"
+          placeholder={loading ? L.chatThinking : L.chatPlaceholder}
+          className="flex-1 bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl px-4 py-2.5 text-xs md:text-sm text-white placeholder-slate-500 outline-none transition disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!input.trim()}
+          disabled={!input.trim() || loading}
           className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs flex items-center gap-2 transition"
         >
-          <span>Send</span>
+          <span>{loading ? L.chatLoading : L.chatSend}</span>
           <Icons.Send className="w-4 h-4" />
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   SCHEME FINDER
+══════════════════════════════════════════════════════ */
+function SchemeFinderView({ lang, profileMode, uploadedFull }) {
+  const L = LABELS[lang] || LABELS.en;
+  const [schemes, setSchemes] = useState([]);
+  const [filter, setFilter] = useState('all');
+  useEffect(()=>{ fetch(`${API}/scheme-finder`).then(r=>r.json()).then(d=>setSchemes(d.schemes)); },[]);
+
+  const activeSchemes = (profileMode === 'uploaded' && uploadedFull?.scheme_finder?.schemes)
+    ? uploadedFull.scheme_finder.schemes
+    : schemes;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h3 className="text-base font-bold text-white">{L.sfTitle}</h3>
+          <p className="text-xs text-slate-400">{L.sfSubtitle}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {/* 'All' chip is always first; remaining chips derive from unique categories in activeSchemes */}
+          {['all', ...Array.from(new Set(activeSchemes.map(s => s.category))).sort()].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
+                filter === f ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+              }`}
+            >
+              {f === 'all' ? `${L.sfAllMatches} (${activeSchemes.length})` : ((lang === 'ta' && SCHEME_CAT_MAP.ta[f]) ? SCHEME_CAT_MAP.ta[f] : f)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {activeSchemes
+          .filter(sch => filter === 'all' || sch.category === filter)
+          .map(sch=>(
+          <div key={sch.id} className="glass glass-h p-6 rounded-2xl flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">{sch.match_percentage}% — {(lang === 'ta' && STATUS_MAP.ta[sch.status]) ? STATUS_MAP.ta[sch.status] : (sch.status || 'Eligible')}</span>
+                <span className="text-[11px] font-semibold text-slate-400">{(lang === 'ta' && SCHEME_CAT_MAP.ta[sch.category]) ? SCHEME_CAT_MAP.ta[sch.category] : sch.category}</span>
+              </div>
+              <h4 className="text-lg font-bold text-white mt-3 leading-snug">{sch.title}</h4>
+              <p className="text-xs text-slate-400 mt-1">{sch.ministry}</p>
+              <div className="my-4 p-3 rounded-xl bg-slate-900/80 border border-slate-800/80">
+                <div className="text-[10px] uppercase font-bold text-slate-400">{L.sfKeyBenefit}</div>
+                <div className="text-sm font-bold text-teal-300 mt-0.5">{sch.max_benefit}</div>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">{sch.subsidy_nature}</p>
+              {sch.matched_tags && sch.matched_tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {sch.matched_tags.map(tag => (
+                    <span key={tag} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800">
+                      ✓ {tag.replace(/_/g,' ')}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {sch.key_eligibility && (
+                <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">{sch.key_eligibility}</p>
+              )}
+            </div>
+            <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400">{L.sfSector} {sch.target_sector}</span>
+              <button className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition">{L.sfGetHelp}</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1517,7 +2437,8 @@ const SEVERITY_META = {
 /* ══════════════════════════════════════════════════════
    LIVE MARKET INDICATORS (Decoupled Global Data Component)
 ══════════════════════════════════════════════════════ */
-function LiveMarketIndicators() {
+function LiveMarketIndicators({ lang }) {
+  const L = LABELS[lang] || LABELS.en;
   const [indicators, setIndicators] = useState(() => {
     try {
       const cached = sessionStorage.getItem('live_market_indicators_cache_v2');
@@ -1659,10 +2580,10 @@ function LiveMarketIndicators() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icons.Activity className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">Live Market Indicators</h3>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">Live API Feeds</span>
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">{L.lmiTitle}</h3>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">{L.lmiLive}</span>
         </div>
-        <span className="text-[10px] text-slate-500 font-mono">Cached per session</span>
+        <span className="text-[10px] text-slate-500 font-mono">{L.lmiCached}</span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1678,7 +2599,7 @@ function LiveMarketIndicators() {
               </div>
 
               {loading && !d ? (
-                <div className="text-xs text-slate-500 animate-pulse py-1">Fetching live data...</div>
+                <div className="text-xs text-slate-500 animate-pulse py-1">{L.lmiFetching}</div>
               ) : isOk ? (
                 <div>
                   <div className="text-xl font-extrabold text-white font-mono">{d.val}</div>
@@ -1694,9 +2615,9 @@ function LiveMarketIndicators() {
               ) : (
                 <div className="py-1">
                   <div className="text-xs font-bold text-amber-400/90 flex items-center gap-1">
-                    <span>Data Unavailable</span>
+                    <span>{L.lmiUnavailable}</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">API endpoint offline or restricted</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">{L.lmiApiOffline}</div>
                 </div>
               )}
             </div>
@@ -1707,7 +2628,11 @@ function LiveMarketIndicators() {
   );
 }
 
-function GlobalRiskView({ profileMode, uploadedFull }) {
+/* ══════════════════════════════════════════════════════
+   GLOBAL RISK INTELLIGENCE & MACRO MONITORING
+══════════════════════════════════════════════════════ */
+function GlobalRiskView({ lang, profileMode, uploadedFull }) {
+  const L = LABELS[lang] || LABELS.en;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1722,39 +2647,67 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
     setLoading(true);
     setError(null);
     const fetchData = customExposure
-      ? fetch(`${API}/global-risk/match`, {
+      ? fetch(`${API}/global-risk/match?lang=${lang}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(customExposure)
         })
-      : fetch(`${API}/global-risk`);
+      : fetch(`${API}/global-risk?lang=${lang}`);
 
     fetchData
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, [profileMode, uploadedFull]);
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .then(d => {
+        if (!d) throw new Error('Global Risk API returned null or empty response.');
+        setData(d);
+        setLoading(false);
+      })
+      .catch(e => {
+        console.error('[GLOBAL RISK FETCH ERROR]', e);
+        setError(e.message || 'Failed to load global risk data.');
+        setLoading(false);
+      });
+  }, [profileMode, uploadedFull, lang]);
 
   const toggle = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
   if (loading) return (
     <div className="space-y-6">
-      <LiveMarketIndicators />
+      <LiveMarketIndicators lang={lang} />
       <div className="flex items-center justify-center h-64 text-slate-400 gap-3">
         <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
-        Checking world events that could affect your business...
+        {L.loadGlobal}
       </div>
     </div>
   );
-  if (error) return (
+  if (error || !data) return (
     <div className="space-y-6">
-      <LiveMarketIndicators />
-      <div className="text-red-400 p-6">Error: {error}</div>
+      <LiveMarketIndicators lang={lang} />
+      <div className="glass rounded-2xl p-6 border border-red-800/60 bg-red-950/20 text-red-300 space-y-2">
+        <div className="flex items-center gap-2 font-bold text-sm text-red-400">
+          <Icons.AlertTriangle className="w-5 h-5 text-red-400" />
+          <span>Global Risk Intelligence Error</span>
+        </div>
+        <p className="text-xs text-red-300">{error || 'Data is unavailable for this business profile.'}</p>
+      </div>
     </div>
   );
-  if (!data) return null;
 
-  const { business_exposure: exp, events, filtered_out_events, total_events_scanned, matched_events, last_updated, data_sources } = data;
+  const exp = data.business_exposure || {
+    name: 'Business Profile',
+    materials: [],
+    supplier_countries: [],
+    currency_exposure: [],
+    export_markets: []
+  };
+  const events = data.events || [];
+  const filtered_out_events = data.filtered_out_events || [];
+  const total_events_scanned = data.total_events_scanned || 0;
+  const matched_events = data.matched_events || 0;
+  const last_updated = data.last_updated || '2026-07-28';
+  const data_sources = data.data_sources || [];
 
   const highCount   = events.filter(e => e.severity === 'high').length;
   const medCount    = events.filter(e => e.severity === 'medium').length;
@@ -1762,7 +2715,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
 
   return (
     <div className="space-y-6">
-      <LiveMarketIndicators />
+      <LiveMarketIndicators lang={lang} />
 
       {/* ── Header bar ── */}
       <div className="glass rounded-2xl p-5 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1771,19 +2724,19 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
             <Icons.Globe className="w-6 h-6 text-white"/>
           </div>
           <div>
-            <div className="font-bold text-lg text-white">Global Risk Intelligence</div>
+            <div className="font-bold text-lg text-white">{L.grTitle}</div>
             <div className="text-xs text-slate-400 mt-0.5">
-              Checked <strong className="text-slate-200">{total_events_scanned}</strong> world events ·
-              <strong className="text-emerald-400"> {matched_events} affect your business</strong> ·
-              <strong className="text-slate-400"> {filtered_out_events.length} not relevant to you</strong>
+              {L.grCheckedEvents} <strong className="text-slate-200">{total_events_scanned}</strong> {L.grWorldEvents} ·
+              <strong className="text-emerald-400"> {matched_events} {L.grAffect}</strong> ·
+              <strong className="text-slate-400"> {filtered_out_events.length} {L.grNotRelevant}</strong>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {highCount > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-red-950/60 text-red-300 border border-red-700/50 font-medium">{highCount} High Impact</span>}
-          {medCount  > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-700/50 font-medium">{medCount} Medium</span>}
-          {lowCount  > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 font-medium">{lowCount} Opportunity</span>}
-          <span className="text-[10px] text-slate-500 font-mono">Updated {last_updated}</span>
+          {highCount > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-red-950/60 text-red-300 border border-red-700/50 font-medium">{highCount} {L.grHighImpact}</span>}
+          {medCount  > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-amber-950/60 text-amber-300 border border-amber-700/50 font-medium">{medCount} {L.grMedium}</span>}
+          {lowCount  > 0 && <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-300 border border-emerald-700/50 font-medium">{lowCount} {L.grOpportunity}</span>}
+          <span className="text-[10px] text-slate-500 font-mono">{L.grUpdated} {last_updated}</span>
         </div>
       </div>
 
@@ -1792,12 +2745,12 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
         {/* ── Left: Exposure Profile Sidebar ── */}
         <div className="xl:col-span-1 space-y-4">
           <div className="glass rounded-2xl p-4 border border-slate-800">
-            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-3">What Your Business Is Exposed To</div>
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-3">{L.grExposureTitle}</div>
             <div className="font-semibold text-sm text-slate-100 mb-4">{exp.name}</div>
 
             <div className="space-y-3 text-xs">
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Raw Materials You Use</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{L.grMaterials}</div>
                 <div className="flex flex-wrap gap-1">
                   {exp.materials.map(m => (
                     <span key={m} className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">{m}</span>
@@ -1805,7 +2758,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Where You Source From</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{L.grSourceFrom}</div>
                 <div className="flex flex-wrap gap-1">
                   {exp.supplier_countries.map(c => (
                     <span key={c} className="px-2 py-0.5 rounded bg-blue-950/50 text-blue-300 border border-blue-800/40 capitalize">{c}</span>
@@ -1813,7 +2766,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Currencies You Deal In</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{L.grCurrencies}</div>
                 <div className="flex flex-wrap gap-1">
                   {exp.currency_exposure.map(c => (
                     <span key={c} className="px-2 py-0.5 rounded bg-yellow-950/40 text-yellow-300 border border-yellow-800/40 uppercase font-mono">{c}</span>
@@ -1821,7 +2774,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                 </div>
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">Countries You Sell To</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5">{L.grExportTo}</div>
                 <div className="flex flex-wrap gap-1">
                   {exp.export_markets.map(m => (
                     <span key={m} className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 capitalize">{m}</span>
@@ -1833,7 +2786,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
 
           {/* Data sources */}
           <div className="glass rounded-2xl p-4 border border-slate-800">
-            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">Data Sources</div>
+            <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">{L.grDataSources}</div>
             <div className="space-y-1.5">
               {data_sources.map(s => (
                 <div key={s} className="text-[11px] text-slate-400 flex items-center gap-1.5">
@@ -1846,7 +2799,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
           {/* Filtered out events */}
           {filtered_out_events.length > 0 && (
             <div className="glass rounded-2xl p-4 border border-slate-800/60 opacity-70">
-              <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">Skipped — doesn't affect you ({filtered_out_events.length})</div>
+              <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">{L.grSkipped} ({filtered_out_events.length})</div>
               <div className="space-y-2">
                 {filtered_out_events.map(e => {
                   const cm = CATEGORY_META[e.category] || CATEGORY_META.tariff;
@@ -1866,7 +2819,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
         <div className="xl:col-span-3 space-y-4">
           {events.length === 0 && (
             <div className="glass rounded-2xl p-8 border border-slate-800 text-center text-slate-400">
-              No world events currently affecting your business — you're in the clear!
+              {L.grNone}
             </div>
           )}
 
@@ -1918,21 +2871,21 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                           ? String(raw).toUpperCase()
                           : String(raw).replace(/\b\w/g, c => c.toUpperCase());
 
-                        let label, chipColor;
+                        let labelPrefix, chipColor;
                         if (type === 'currency') {
-                          label = `Currency Impact: ${display}`;
+                          labelPrefix = L.grTagCurrency || 'Currency Impact:';
                           chipColor = 'bg-yellow-950/60 text-yellow-300 border-yellow-800/40';
                         } else if (type === 'country') {
-                          label = `Related Country: ${display}`;
+                          labelPrefix = L.grTagCountry || 'Related Country:';
                           chipColor = 'bg-blue-950/60 text-blue-300 border-blue-800/40';
                         } else {
-                          label = `Affects Your: ${display}`;
+                          labelPrefix = L.grTagAffects || 'Affects Your:';
                           chipColor = 'bg-indigo-950/60 text-indigo-300 border-indigo-800/40';
                         }
 
                         return (
                           <span key={ti} className={`text-[10px] px-2 py-0.5 rounded border font-medium ${chipColor}`}>
-                            {label}
+                            {labelPrefix} {display}
                           </span>
                         );
                       })}
@@ -1947,7 +2900,7 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                 {/* Expanded impact cards */}
                 {isOpen && (
                   <div className="px-5 pb-5 space-y-3 border-t border-slate-800/60 pt-4">
-                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">Impact on Your Business</div>
+                    <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">{L.grImpactTitle}</div>
                     {evt.matched_impacts.map((impact, idx) => (
                       <div key={idx} className="rounded-xl bg-slate-900/60 border border-slate-800 p-4 space-y-3">
                         <div className="flex items-center gap-2">
@@ -1957,19 +2910,19 @@ function GlobalRiskView({ profileMode, uploadedFull }) {
                         </div>
 
                         <div>
-                          <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">How This Affects You</div>
+                          <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">{L.grHowAffects}</div>
                           <p className="text-xs text-slate-300 leading-relaxed">{impact.why_it_matters}</p>
                         </div>
 
                         <div className={`rounded-lg p-3 border ${evt.severity === 'high' ? 'bg-red-950/20 border-red-800/30' : evt.severity === 'medium' ? 'bg-amber-950/20 border-amber-800/30' : 'bg-emerald-950/20 border-emerald-800/30'}`}>
-                          <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Possible Effect on Your Business</div>
+                          <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">{L.grPossibleEffect}</div>
                           <p className={`text-xs font-semibold leading-relaxed ${evt.severity === 'high' ? 'text-red-300' : evt.severity === 'medium' ? 'text-amber-300' : 'text-emerald-300'}`}>
                             {impact.estimated_impact}
                           </p>
                         </div>
 
                         <div className="rounded-lg p-3 bg-slate-900/80 border border-slate-700/60">
-                          <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">What You Should Do</div>
+                          <div className="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1">{L.grWhatToDo}</div>
                           <p className="text-xs text-slate-200 leading-relaxed">{impact.action}</p>
                         </div>
                       </div>
