@@ -202,6 +202,29 @@ const LABELS = {
     cfIesMda:            'IES / MDA eligible',
     cfDropzone:          'Drop CSV or Photo of Ledger (PNG/JPG)',
     cfDropzoneSub:       'Accepts CSV spreadsheets or paper ledger photos via Gemini Vision',
+    cfUploadAdded:       'Added {added} new transactions ({skipped} duplicates skipped, {total} total on file)',
+    cfDataRestored:      'Data restored from last session · {total} transactions on file',
+    cfClearData:         'Clear My Business Data',
+    cfClearConfirm:      'This will permanently delete all accumulated My Business data and reset to Demo Data. Are you sure?',
+    cfClearSuccess:      'My Business data cleared. Upload a new file to start fresh.',
+    csvMapTitle:         'Column Mapping Preview',
+    csvMapSub:           'Here is how we understood your file. Confirm or customize the detected columns below.',
+    csvMapExplain:       'Detected Mapping',
+    csvMapConfirm:       'Looks correct — Continue',
+    csvMapCustom:        'Customize Mapping',
+    csvMapCancel:        'Cancel',
+    csvMapPreviewTitle:  'First {count} Processed Transactions',
+    csvMapDateCol:       'Date Column',
+    csvMapDescCol:       'Description Column',
+    csvMapColMode:       'Amount Column Format',
+    csvMapSingleAmt:     'Single Amount Column',
+    csvMapSplitAmt:      'Separate Debit & Credit Columns',
+    csvMapAmtCol:        'Amount Column',
+    csvMapDebitCol:      'Debit (Outflow) Column',
+    csvMapCreditCol:     'Credit (Inflow) Column',
+    csvMapApplyCustom:   'Apply Custom Mapping & Continue',
+    csvMapInflow:        'Inflow',
+    csvMapOutflow:       'Outflow',
     cfThresholdLabel:    'Safety Balance Threshold',
     cfApply:             'Apply',
     cfThresholdWarn:     'Balance Threshold Warning',
@@ -391,6 +414,29 @@ const LABELS = {
     cfIesMda:            'IES / MDA தகுதியானது',
     cfDropzone:          'CSV அல்லது கணக்கு படத்தை (PNG/JPG) இங்கே போடுங்கள்',
     cfDropzoneSub:       'CSV அல்லது காகித ஏட்டு படங்களை Gemini Vision மூலம் ஏற்கும்',
+    cfUploadAdded:       '{added} புதிய பரிவர்த்தனைகள் சேர்க்கப்பட்டன ({skipped} நகல்கள் தவிர்க்கப்பட்டன, மொத்தம் {total} பரிவர்த்தனைகள்)',
+    cfDataRestored:      'கடைசி அமர்விலிருந்து தரவு மீட்டெடுக்கப்பட்டது · {total} பரிவர்த்தனைகள் கோப்பில் உள்ளன',
+    cfClearData:         'என் வணிக தரவை அழிக்கவும்',
+    cfClearConfirm:      'இது அனைத்து திரட்டப்பட்ட என் வணிக தரவையும் நிரந்தரமாக நீக்கும். தொடரவுமா?',
+    cfClearSuccess:      'என் வணிக தரவு அழிக்கப்பட்டது. மீண்டும் தொடங்க புதிய கோப்பை பதிவேற்றவும்.',
+    csvMapTitle:         'நெடுவரிசை மேப்பிங் முன்னோட்டம்',
+    csvMapSub:           'உங்கள் கோப்பின் அமைப்பை நாங்கள் புரிந்துகொண்ட விதம் இது. கீழே உள்ள நெடுவரிசைகளை உறுதிப்படுத்தவும் அல்லது தனிப்பயனாக்கவும்.',
+    csvMapExplain:       'கண்டறியப்பட்ட மேப்பிங்',
+    csvMapConfirm:       'சரியாக உள்ளது — தொடரவும்',
+    csvMapCustom:        'மேப்பிங்கைத் தனிப்பயனாக்குங்கள்',
+    csvMapCancel:        'ரத்துசெய்',
+    csvMapPreviewTitle:  'முதல் {count} செயலாக்கப்பட்ட பரிவர்த்தனைகள்',
+    csvMapDateCol:       'தேதி நெடுவரிசை',
+    csvMapDescCol:       'விளக்க நெடுவரிசை',
+    csvMapColMode:       'தொகை நெடுவரிசை வடிவம்',
+    csvMapSingleAmt:     'ஒற்றை தொகை நெடுவரிசை',
+    csvMapSplitAmt:      'தனித்தனி பற்று மற்றும் வரவு நெடுவரிசைகள்',
+    csvMapAmtCol:        'தொகை நெடுவரிசை',
+    csvMapDebitCol:      'பற்று (வெளியேற்றம்) நெடுவரிசை',
+    csvMapCreditCol:     'வரவு (உள்வரவு) நெடுவரிசை',
+    csvMapApplyCustom:   'தனிப்பயன் மேப்பிங்கைப் பயன்படுத்து',
+    csvMapInflow:        'உள்வரவு',
+    csvMapOutflow:       'வெளியேற்றம்',
     cfThresholdLabel:    'பாதுகாப்பு இருப்பு வரம்பு',
     cfApply:             'பயன்படுத்து',
     cfThresholdWarn:     'இருப்பு வரம்பு எச்சரிக்கை',
@@ -618,15 +664,206 @@ const TABS = [
 ];
 
 /* ══════════════════════════════════════════════════════
+   MY BUSINESS PERSISTENCE HELPERS
+   localStorage-backed accumulation for uploaded transaction history.
+   Key design: backend stays fully stateless; all merging is client-side.
+══════════════════════════════════════════════════════ */
+const LS_ROWS_KEY    = 'mythos_business_rows';    // JSON array of {date,description,amount}
+const LS_PROFILE_KEY = 'mythos_business_profile'; // last full uploadedFull object
+const LS_META_KEY    = 'mythos_business_meta';    // {filename}
+
+// ── CSV parsing ────────────────────────────────────────────────────────────
+function _splitCSVLine(line) {
+  // Splits one CSV line respecting double-quoted fields with embedded commas.
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; } // escaped quote
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseCSVRows(csvText) {
+  // Returns [{date, description, amount}] only if standard recognized headers are present.
+  if (!csvText || !csvText.trim()) return [];
+  const lines = csvText.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length < 2) return [];
+  const headerParts = _splitCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+  
+  const dateIdx = headerParts.findIndex(h => h === 'date' || h === 'txn_date' || h === 'transaction_date');
+  const descIdx = headerParts.findIndex(h => h === 'description' || h === 'desc' || h === 'particulars');
+  const amtIdx  = headerParts.findIndex(h => h === 'amount' || h === 'amt');
+
+  // If any standard column is missing, return [] to trigger intelligent mapping detection
+  if (dateIdx === -1 || descIdx === -1 || amtIdx === -1) {
+    return [];
+  }
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = _splitCSVLine(line);
+    if (parts.length <= Math.max(dateIdx, descIdx, amtIdx)) continue;
+
+    const rawDate = (parts[dateIdx] || '').trim();
+    const rawDesc = (parts[descIdx] || '').trim();
+    const rawAmt  = (parts[amtIdx]  || '').trim();
+
+    const cleanAmt = rawAmt.replace(/[^\d\.\-\+]/g, '');
+    const amount = parseFloat(cleanAmt);
+    if (isNaN(amount)) continue;
+
+    let dClean = rawDate.split(' ')[0].split('T')[0].replace(/\//g, '-').trim();
+    const dParts = dClean.split('-');
+    let normDate = dClean;
+    if (dParts.length === 3) {
+      if (dParts[0].length === 4) {
+        normDate = `${dParts[0].padStart(4,'0')}-${dParts[1].padStart(2,'0')}-${dParts[2].padStart(2,'0')}`;
+      } else if (dParts[2].length === 4) {
+        normDate = `${dParts[2].padStart(4,'0')}-${dParts[1].padStart(2,'0')}-${dParts[0].padStart(2,'0')}`;
+      }
+    }
+    if (!normDate) continue;
+
+    rows.push({ date: normDate, description: rawDesc, amount });
+  }
+  return rows;
+}
+
+function parseCSVWithMapping(csvText, mapping) {
+  // Returns [{date, description, amount}] using explicit header mapping dictionary
+  if (!csvText || !csvText.trim() || !mapping) return [];
+  const lines = csvText.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length < 2) return [];
+  const headerParts = _splitCSVLine(lines[0]).map(h => h.trim().replace(/^["']|["']$/g, ''));
+
+  const dateCol = mapping.date;
+  const descCol = mapping.description;
+  const amtCol  = mapping.amount;
+  const drCol   = mapping.debit;
+  const crCol   = mapping.credit;
+
+  const dateIdx = headerParts.findIndex(h => h === dateCol);
+  const descIdx = headerParts.findIndex(h => h === descCol);
+  const amtIdx  = amtCol ? headerParts.findIndex(h => h === amtCol) : -1;
+  const drIdx   = drCol ? headerParts.findIndex(h => h === drCol) : -1;
+  const crIdx   = crCol ? headerParts.findIndex(h => h === crCol) : -1;
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = _splitCSVLine(line);
+
+    const rawDate = dateIdx >= 0 ? (parts[dateIdx] || '').trim() : '';
+    const rawDesc = descIdx >= 0 ? (parts[descIdx] || '').trim() : 'Transaction';
+
+    let amount = 0.0;
+    if (amtIdx >= 0) {
+      const rawAmt = (parts[amtIdx] || '').trim();
+      const cleanAmt = rawAmt.replace(/[^\d\.\-\+]/g, '');
+      amount = parseFloat(cleanAmt) || 0.0;
+      if (rawAmt.toLowerCase().includes('dr') && amount > 0) amount = -amount;
+    } else {
+      const rawDr = drIdx >= 0 ? (parts[drIdx] || '').trim() : '';
+      const rawCr = crIdx >= 0 ? (parts[crIdx] || '').trim() : '';
+      const cleanDr = rawDr.replace(/[^\d\.]/g, '');
+      const cleanCr = rawCr.replace(/[^\d\.]/g, '');
+      const drVal = parseFloat(cleanDr) || 0.0;
+      const crVal = parseFloat(cleanCr) || 0.0;
+      if (drVal > 0) amount = -drVal;
+      else if (crVal > 0) amount = crVal;
+      else amount = 0.0;
+    }
+
+    let dClean = rawDate.split(' ')[0].split('T')[0].replace(/\//g, '-').trim();
+    const dParts = dClean.split('-');
+    let normDate = dClean;
+    if (dParts.length === 3) {
+      if (dParts[0].length === 4) {
+        normDate = `${dParts[0].padStart(4,'0')}-${dParts[1].padStart(2,'0')}-${dParts[2].padStart(2,'0')}`;
+      } else if (dParts[2].length === 4) {
+        normDate = `${dParts[2].padStart(4,'0')}-${dParts[1].padStart(2,'0')}-${dParts[0].padStart(2,'0')}`;
+      }
+    }
+    if (!normDate) continue;
+
+    rows.push({ date: normDate, description: rawDesc, amount });
+  }
+  return rows;
+}
+
+function rowsToCSV(rows) {
+  // Serialises [{date, description, amount}] back to CSV text.
+  const header = 'date,description,amount';
+  const lines = rows.map(r => `${r.date},"${(r.description || '').replace(/"/g, '""')}",${r.amount}`);
+  return [header, ...lines].join('\n');
+}
+
+// ── Merge + deduplicate ────────────────────────────────────────────────────
+function mergeAndDedup(newRows, existingRows) {
+  // Dedup key: exact date + normalised description + amount.
+  // Returns { merged (sorted by date), added, skipped }.
+  const key = r => `${r.date}|${(r.description || '').toLowerCase().trim()}|${Number(r.amount).toFixed(2)}`;
+  const seen = new Set(existingRows.map(key));
+  let added = 0, skipped = 0;
+  const merged = [...existingRows];
+  for (const row of newRows) {
+    const k = key(row);
+    if (seen.has(k)) { skipped++; }
+    else { seen.add(k); merged.push(row); added++; }
+  }
+  merged.sort((a, b) => a.date.localeCompare(b.date));
+  return { merged, added, skipped };
+}
+
+// ── localStorage read / write ──────────────────────────────────────────────
+function loadStoredRows() {
+  try { return JSON.parse(localStorage.getItem(LS_ROWS_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveStoredRows(rows) {
+  try { localStorage.setItem(LS_ROWS_KEY, JSON.stringify(rows)); }
+  catch(e) { console.warn('[localStorage] Could not save rows:', e); }
+}
+function loadStoredProfile() {
+  try { return JSON.parse(localStorage.getItem(LS_PROFILE_KEY) || 'null'); }
+  catch { return null; }
+}
+function saveStoredProfile(profile) {
+  try { localStorage.setItem(LS_PROFILE_KEY, JSON.stringify(profile)); }
+  catch(e) { console.warn('[localStorage] Could not save profile:', e); }
+}
+function clearMyBusinessData() {
+  [LS_ROWS_KEY, LS_PROFILE_KEY, LS_META_KEY].forEach(k => localStorage.removeItem(k));
+}
+
+/* ══════════════════════════════════════════════════════
    APP ROOT
 ══════════════════════════════════════════════════════ */
 function App() {
-  const [tab, setTab] = useState('cashflow');
-  const [lang, setLang] = useState('en'); // 'en' | 'ta'
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get('tab') || 'cashflow';
+  const initialProfile = urlParams.get('profile') || 'demo';
+
+  const [tab, setTab] = useState(initialTab);
+  const [lang, setLang] = useState(urlParams.get('lang') || 'en'); // 'en' | 'ta'
   const [health, setHealth] = useState(null);
-  const [profileMode, setProfileMode] = useState('demo'); // 'demo' | 'uploaded'
+  const [profileMode, setProfileMode] = useState(initialProfile); // 'demo' | 'uploaded'
   const [uploadedFull, setUploadedFull] = useState(null);
   const [uploadedFilename, setUploadedFilename] = useState(null);
+  const [uploadFeedback, setUploadFeedback] = useState(null); // {added,skipped,total} | {restored,total}
 
   const L = LABELS[lang] || LABELS.en;
 
@@ -639,11 +876,39 @@ function App() {
     document.title = APP_CONFIG.name;
   }, []);
 
-  const handleFullAnalysis = (data, filename) => {
+  /* ── Restore last My Business session from localStorage on page load ── */
+  useEffect(() => {
+    const stored = loadStoredProfile();
+    if (stored) {
+      const meta = (() => { try { return JSON.parse(localStorage.getItem(LS_META_KEY) || 'null'); } catch { return null; } })();
+      const storedRows = loadStoredRows();
+      setUploadedFull(stored);
+      setUploadedFilename(meta?.filename || 'My Business');
+      setProfileMode('uploaded');
+      setUploadFeedback({ restored: true, total: storedRows.length });
+      console.log('[APP] Restored My Business session from localStorage:', storedRows.length, 'rows');
+    }
+  }, []);
+
+  const handleFullAnalysis = (data, filename, uploadMeta) => {
     console.log('[APP handleFullAnalysis] Storing uploaded profile payload:', data);
     setUploadedFull(data);
     if (filename) setUploadedFilename(filename);
-    setProfileMode('uploaded'); // Auto-switch to My Business profile after upload
+    setProfileMode('uploaded');
+    // Persist to localStorage for next page load
+    saveStoredProfile(data);
+    try { localStorage.setItem(LS_META_KEY, JSON.stringify({ filename })); } catch {}
+    if (uploadMeta) setUploadFeedback(uploadMeta);
+  };
+
+  const handleClearMyBusiness = () => {
+    const L2 = LABELS[lang] || LABELS.en;
+    if (!window.confirm(L2.cfClearConfirm)) return;
+    clearMyBusinessData();
+    setUploadedFull(null);
+    setUploadedFilename(null);
+    setProfileMode('demo');
+    setUploadFeedback({ cleared: true });
   };
 
   const currentBusinessName = profileMode === 'uploaded' && uploadedFull?.company_profile?.name
@@ -765,7 +1030,7 @@ function App() {
 
         <main className="flex-1 overflow-y-auto p-6 space-y-6">
           <ErrorBoundary>
-            {tab === 'cashflow'   && <CashFlowView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} onFullAnalysis={handleFullAnalysis} />}
+            {tab === 'cashflow'   && <CashFlowView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} onFullAnalysis={handleFullAnalysis} uploadFeedback={uploadFeedback} onUploadFeedback={setUploadFeedback} onClearMyBusiness={handleClearMyBusiness} />}
             {tab === 'risk'       && <RiskRadarView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
             {tab === 'loan'       && <LoanScoreView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
             {tab === 'schemes'    && <SchemeFinderView lang={lang} profileMode={profileMode} uploadedFull={uploadedFull} />}
@@ -941,9 +1206,234 @@ function LedgerReviewModal({ lang, reviewData, onConfirm, onCancel }) {
 }
 
 /* ══════════════════════════════════════════════════════
+   CSV COLUMN MAPPING REVIEW MODAL
+══════════════════════════════════════════════════════ */
+function CSVMappingReviewModal({ lang, reviewData, onConfirm, onCancel }) {
+  if (!reviewData) return null;
+  const L = LABELS[lang] || LABELS.en;
+
+  const initialMapping = reviewData.detected_mapping || {};
+  const [customMode, setCustomMode] = useState(false);
+  const [dateCol, setDateCol] = useState(initialMapping.date || '');
+  const [descCol, setDescCol] = useState(initialMapping.description || '');
+  const [amtType, setAmtType] = useState(initialMapping.debit && initialMapping.credit ? 'split' : 'single');
+  const [amtCol, setAmtCol] = useState(initialMapping.amount || '');
+  const [debitCol, setDebitCol] = useState(initialMapping.debit || '');
+  const [creditCol, setCreditCol] = useState(initialMapping.credit || '');
+
+  const availableHeaders = reviewData.available_headers || [];
+
+  const currentMapping = {
+    date: dateCol,
+    description: descCol,
+    amount: amtType === 'single' ? amtCol : null,
+    debit: amtType === 'split' ? debitCol : null,
+    credit: amtType === 'split' ? creditCol : null
+  };
+
+  const previewRows = useMemo(() => {
+    if (!reviewData.rawCsvText) return reviewData.preview_rows || [];
+    try {
+      const parsed = parseCSVWithMapping(reviewData.rawCsvText, currentMapping);
+      return parsed.slice(0, 15);
+    } catch {
+      return reviewData.preview_rows || [];
+    }
+  }, [reviewData.rawCsvText, dateCol, descCol, amtType, amtCol, debitCol, creditCol]);
+
+  const handleProceed = () => {
+    onConfirm(currentMapping, reviewData.rawCsvText, reviewData.filename);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
+      <div className="glass rounded-2xl border border-slate-700 w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="p-5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+          <div>
+            <div className="text-base font-bold text-white flex items-center gap-2">
+              <Icons.Sparkles className="w-5 h-5 text-teal-400"/>
+              {L.csvMapTitle}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              {L.csvMapSub} <span className="text-slate-200 font-mono">({reviewData.filename})</span>
+            </p>
+          </div>
+          <button onClick={onCancel} className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition" title={L.csvMapCancel}>
+            <Icons.X className="w-5 h-5"/>
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          {/* Mapping Explanation Banner */}
+          <div className="p-4 rounded-xl bg-teal-950/40 border border-teal-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5 text-teal-200">
+              <Icons.Activity className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-teal-300 uppercase tracking-wider text-[10px] block mb-0.5">{L.csvMapExplain}</span>
+                <span>{initialMapping.explanation || 'Mapped CSV columns to standard financial format.'}</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setCustomMode(v => !v)}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold rounded-lg border border-slate-700 transition shrink-0"
+            >
+              {customMode ? '← Auto Preview' : `⚙ ${L.csvMapCustom}`}
+            </button>
+          </div>
+
+          {/* Custom Mapping Drawer */}
+          {customMode && (
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-700/80 space-y-3">
+              <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">{L.csvMapCustom}</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapDateCol}</label>
+                  <select
+                    value={dateCol}
+                    onChange={e => setDateCol(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                  >
+                    {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapDescCol}</label>
+                  <select
+                    value={descCol}
+                    onChange={e => setDescCol(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                  >
+                    {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapColMode}</label>
+                <div className="flex gap-4 text-xs text-slate-300">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="amtType" checked={amtType === 'single'} onChange={() => setAmtType('single')} className="text-teal-500" />
+                    <span>{L.csvMapSingleAmt}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="amtType" checked={amtType === 'split'} onChange={() => setAmtType('split')} className="text-teal-500" />
+                    <span>{L.csvMapSplitAmt}</span>
+                  </label>
+                </div>
+              </div>
+
+              {amtType === 'single' ? (
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapAmtCol}</label>
+                  <select
+                    value={amtCol}
+                    onChange={e => setAmtCol(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                  >
+                    <option value="">— Select column —</option>
+                    {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapDebitCol}</label>
+                    <select
+                      value={debitCol}
+                      onChange={e => setDebitCol(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                    >
+                      <option value="">— Select column —</option>
+                      {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">{L.csvMapCreditCol}</label>
+                    <select
+                      value={creditCol}
+                      onChange={e => setCreditCol(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 focus:border-teal-500 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"
+                    >
+                      <option value="">— Select column —</option>
+                      {availableHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Data Preview Table */}
+          <div className="space-y-2">
+            <div className="text-xs font-bold text-slate-400 flex items-center justify-between">
+              <span>{L.csvMapPreviewTitle.replace('{count}', previewRows.length)}</span>
+              <span className="text-[11px] text-slate-500 font-mono">Total {reviewData.total_rows_estimated || previewRows.length} rows in file</span>
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 max-h-64">
+              <table className="w-full text-left text-xs text-slate-200 border-collapse">
+                <thead>
+                  <tr className="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
+                    <th className="p-3">#</th>
+                    <th className="p-3">{L.ledgerColDate}</th>
+                    <th className="p-3">{L.ledgerColDesc}</th>
+                    <th className="p-3 text-right">{L.ledgerColAmt}</th>
+                    <th className="p-3 text-center">{L.ledgerColType}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {previewRows.map((r, idx) => {
+                    const isInflow = (r.amount || 0) >= 0;
+                    return (
+                      <tr key={idx} className="hover:bg-slate-900/50">
+                        <td className="p-3 text-slate-500 font-mono text-[11px]">{idx + 1}</td>
+                        <td className="p-3 font-mono text-slate-300">{r.date}</td>
+                        <td className="p-3 text-slate-200">{r.description}</td>
+                        <td className={`p-3 text-right font-mono font-bold ${isInflow ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {fmt(r.amount)}
+                        </td>
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isInflow ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-red-950 text-red-400 border border-red-800'
+                          }`}>
+                            {isInflow ? L.csvMapInflow : L.csvMapOutflow}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex items-center justify-between gap-4">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition"
+          >
+            {L.csvMapCancel}
+          </button>
+          <button
+            onClick={handleProceed}
+            className="px-5 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2"
+          >
+            <Icons.Check className="w-4 h-4"/>
+            {customMode ? L.csvMapApplyCustom : L.csvMapConfirm}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    CASH FLOW TAB  (with CSV & Ledger Photo Module)
 ══════════════════════════════════════════════════════ */
-function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
+function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis, uploadFeedback, onUploadFeedback, onClearMyBusiness }) {
   const L = LABELS[lang] || LABELS.en;
   const [summary, setSummary] = useState(null);
   const [forecast, setForecast] = useState(null);      // CSV forecast result
@@ -954,6 +1444,7 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
   const [csvFilename, setCsvFilename] = useState(null);
   const [error, setError] = useState(null);
   const [ledgerReviewData, setLedgerReviewData] = useState(null);
+  const [mappingReviewData, setMappingReviewData] = useState(null);
   // Upload-time business metadata
   const [businessName, setBusinessName] = useState('');
   const [keyMaterials, setKeyMaterials] = useState('');
@@ -1004,7 +1495,40 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
         }
       } else {
         const reader = new FileReader();
-        reader.onload = e => submitCSV(e.target.result, file.name);
+        reader.onload = async e => {
+          const rawText = e.target.result;
+          const parsed = parseCSVRows(rawText);
+          if (parsed.length > 0) {
+            // Standard format recognized — direct merge & submission
+            const stored = loadStoredRows();
+            const { merged, added, skipped } = mergeAndDedup(parsed, stored);
+            saveStoredRows(merged);
+            const mergedCSV = rowsToCSV(merged);
+            submitCSV(mergedCSV, file.name, { added, skipped, total: merged.length });
+          } else {
+            // Non-standard format — detect column mapping via Gemini
+            try {
+              const form = new FormData();
+              form.append('csv_text', rawText);
+              const res = await fetch(`${API}/cash-flow/detect-csv-mapping`, { method: 'POST', body: form });
+              const data = await res.json();
+              if (data.error) {
+                setError(data.error);
+              } else if (data.status === 'mapping_detected') {
+                setMappingReviewData({
+                  filename: file.name,
+                  rawCsvText: rawText,
+                  ...data
+                });
+              } else {
+                setError('Could not detect column mapping for this CSV.');
+              }
+            } catch (err) {
+              console.error('[MAPPING DETECT ERROR]', err);
+              setError(`Could not detect CSV columns: ${err.message || err}`);
+            }
+          }
+        };
         reader.readAsText(file);
       }
     } catch (e) {
@@ -1014,13 +1538,27 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
     setUploading(false);
   };
 
-  const confirmLedgerTransactions = (editedRows, filename) => {
-    const csvHeader = "date,description,amount";
-    const csvLines = editedRows.map(r => `${r.date},"${(r.description || '').replace(/"/g, '""')}",${r.amount}`);
-    const csvText = [csvHeader, ...csvLines].join("\n");
+  const confirmCSVMapping = (confirmedMapping, rawCsvText, filename) => {
+    setMappingReviewData(null);
+    const parsed = parseCSVWithMapping(rawCsvText, confirmedMapping);
+    if (parsed.length === 0) {
+      setError('Could not extract any valid transactions with this column mapping.');
+      return;
+    }
+    const stored = loadStoredRows();
+    const { merged, added, skipped } = mergeAndDedup(parsed, stored);
+    saveStoredRows(merged);
+    const mergedCSV = rowsToCSV(merged);
+    submitCSV(mergedCSV, filename, { added, skipped, total: merged.length });
+  };
 
+  const confirmLedgerTransactions = (editedRows, filename) => {
     setLedgerReviewData(null);
-    submitCSV(csvText, `[Ledger Photo] ${filename}`);
+    const stored = loadStoredRows();
+    const { merged, added, skipped } = mergeAndDedup(editedRows, stored);
+    saveStoredRows(merged);
+    const mergedCSV = rowsToCSV(merged);
+    submitCSV(mergedCSV, `[Ledger Photo] ${filename}`, { added, skipped, total: merged.length });
   };
 
   const activeSummary = (profileMode === 'uploaded' && uploadedFull) ? uploadedFull.cash_flow : summary;
@@ -1158,7 +1696,7 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
   }, [activeForecast, threshold]);
 
   /* ── CSV helpers ── */
-  const submitCSV = async (text, name) => {
+  const submitCSV = async (text, name, uploadMeta) => {
     setUploading(true); setError(null);
     try {
       if (!text || !text.trim()) {
@@ -1214,7 +1752,7 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
         };
 
         if (onFullAnalysis) {
-          onFullAnalysis(fullProfile, name);
+          onFullAnalysis(fullProfile, name, uploadMeta);
         }
       }
     } catch(e) {
@@ -1230,7 +1768,12 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
       const res  = await fetch(`${API}/cash-flow/sample-csv`);
       if (!res.ok) throw new Error(`Could not fetch sample CSV: HTTP ${res.status}`);
       const text = await res.text();
-      await submitCSV(text, 'sample_transactions_90d.csv');
+      const parsed = parseCSVRows(text);
+      const stored = loadStoredRows();
+      const { merged, added, skipped } = mergeAndDedup(parsed, stored);
+      saveStoredRows(merged);
+      const mergedCSV = rowsToCSV(merged);
+      await submitCSV(mergedCSV, 'sample_transactions_90d.csv', { added, skipped, total: merged.length });
     } catch(e) {
       console.error('[LOAD SAMPLE ERROR]', e);
       setError(`Could not fetch sample CSV: ${e.message}`);
@@ -1294,7 +1837,17 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">{L.cfForecastSub}</p>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap items-center">
+            {profileMode === 'uploaded' && onClearMyBusiness && (
+              <button
+                onClick={onClearMyBusiness}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-300 text-xs font-semibold border border-red-800/60 transition shadow-sm"
+                title={L.cfClearData}
+              >
+                <Icons.Trash className="w-3.5 h-3.5 text-red-400" />
+                {L.cfClearData}
+              </button>
+            )}
             <button onClick={downloadSample} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition">
               <Icons.Download className="w-3.5 h-3.5"/>{L.cfSampleCsv}
             </button>
@@ -1305,6 +1858,29 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Upload Feedback Banner */}
+          {uploadFeedback && (
+            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-950/70 border border-emerald-700/60 text-emerald-200 text-xs font-semibold shadow-lg">
+              <div className="flex items-center gap-2.5">
+                <Icons.Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  {uploadFeedback.added !== undefined
+                    ? L.cfUploadAdded.replace('{added}', uploadFeedback.added).replace('{skipped}', uploadFeedback.skipped).replace('{total}', uploadFeedback.total)
+                    : uploadFeedback.restored
+                    ? L.cfDataRestored.replace('{total}', uploadFeedback.total)
+                    : uploadFeedback.cleared
+                    ? L.cfClearSuccess
+                    : ''}
+                </span>
+              </div>
+              {onUploadFeedback && (
+                <button onClick={() => onUploadFeedback(null)} className="text-emerald-400 hover:text-white p-1 rounded transition" title="Dismiss">
+                  <Icons.X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Business metadata inputs */}
           <div className="glass rounded-xl p-5 border border-slate-800 space-y-4">
             <div className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -1483,6 +2059,14 @@ function CashFlowView({ lang, profileMode, uploadedFull, onFullAnalysis }) {
               reviewData={ledgerReviewData}
               onConfirm={confirmLedgerTransactions}
               onCancel={() => setLedgerReviewData(null)}
+            />
+
+            {/* CSV Column Mapping Review Modal */}
+            <CSVMappingReviewModal
+              lang={lang}
+              reviewData={mappingReviewData}
+              onConfirm={confirmCSVMapping}
+              onCancel={() => setMappingReviewData(null)}
             />
 
             <div className="glass rounded-xl p-5 space-y-4 border border-slate-800">
@@ -2639,9 +3223,16 @@ function GlobalRiskView({ lang, profileMode, uploadedFull }) {
   const [expanded, setExpanded] = useState({});
 
   // Determine whether we have a custom uploaded exposure profile to use
-  const customExposure = (profileMode === 'uploaded' && uploadedFull?.global_exposure)
+  const urlExposure = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get('exposure');
+      return p ? JSON.parse(decodeURIComponent(p)) : null;
+    } catch { return null; }
+  })();
+
+  const customExposure = urlExposure || ((profileMode === 'uploaded' && uploadedFull?.global_exposure)
     ? uploadedFull.global_exposure
-    : null;
+    : null);
 
   useEffect(() => {
     setLoading(true);
