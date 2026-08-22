@@ -20,6 +20,13 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
+from providers.static_provider import _GLOBAL_EVENTS, StaticProvider
+from providers.factory import get_provider
+from providers.currents_provider import ProviderUnavailableError
+from providers.enrichment import enrich_events_to_schema
+from event_cache import cache_key_for_exposure, get_cached_events, set_cached_events
+from datetime import timezone
+
 logger = logging.getLogger("copilot")
 logging.basicConfig(level=logging.INFO)
 
@@ -51,111 +58,7 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessageItem]] = []
     language: Optional[str] = "en"
 
-@app.get("/api/health")
-def health_check():
-    return {"status": "ok", "service": "fastapi-backend"}
 
-@app.get("/api/cash-flow")
-def get_cash_flow_data():
-    return {
-        "summary": {
-            "current_balance": 4850000,
-            "monthly_inflow": 3200000,
-            "monthly_outflow": 2650000,
-            "net_cashflow": 550000,
-            "runway_months": 5.4,
-            "burn_rate": 2650000,
-            "currency": "INR",
-            "currency_symbol": "₹"
-        },
-        "forecast_chart": [
-            {"month": "Mar 2026", "inflow": 2800000, "outflow": 2400000, "net": 400000, "projected": False},
-            {"month": "Apr 2026", "inflow": 3100000, "outflow": 2500000, "net": 600000, "projected": False},
-            {"month": "May 2026", "inflow": 2950000, "outflow": 2600000, "net": 350000, "projected": False},
-            {"month": "Jun 2026", "inflow": 3400000, "outflow": 2700000, "net": 700000, "projected": False},
-            {"month": "Jul 2026", "inflow": 3200000, "outflow": 2650000, "net": 550000, "projected": False},
-            {"month": "Aug 2026", "inflow": 3600000, "outflow": 2800000, "net": 800000, "projected": True},
-            {"month": "Sep 2026", "inflow": 3850000, "outflow": 2900000, "net": 950000, "projected": True},
-            {"month": "Oct 2026", "inflow": 3500000, "outflow": 3100000, "net": 400000, "projected": True}
-        ],
-        "working_capital": {
-            "accounts_receivable": 1850000,
-            "accounts_payable": 920000,
-            "inventory_value": 1400000,
-            "cash_on_hand": 4850000,
-            "dso_days": 42, # Days Sales Outstanding
-            "dpo_days": 28  # Days Payable Outstanding
-        },
-        "alerts": [
-            {
-                "id": "alt-1",
-                "severity": "high",
-                "title": "GST Q2 Tax Liability Payment",
-                "due_date": "2026-08-20",
-                "amount": 420000,
-                "description": "Estimated GST liability payment coming up. Recommend setting aside ₹420k from July receivables."
-            },
-            {
-                "id": "alt-2",
-                "severity": "medium",
-                "title": "Vendor Delayed Receivables Risk",
-                "due_date": "2026-07-30",
-                "amount": 650000,
-                "description": "Apex Auto Corp payment is 14 days overdue. Impact on August inventory purchase."
-            }
-        ]
-    }
-
-@app.get("/api/risk-radar")
-def get_risk_radar_data():
-    return {
-        "overall_score": 28,  # 0 to 100, lower is better risk index
-        "risk_level": "Low-Moderate Risk",
-        "health_status": "Healthy with Monitor Points",
-        "last_updated": "2026-07-22",
-        "metrics": [
-            {
-                "name": "Customer Concentration",
-                "score": 62,
-                "status": "Warning",
-                "details": "Top client Apex Auto accounts for 38% of monthly revenue. Diversification recommended.",
-                "category": "Revenue Risk"
-            },
-            {
-                "name": "Debt Service Coverage (DSCR)",
-                "score": 22, # low risk
-                "status": "Optimal",
-                "details": "DSCR is 1.85x. Net operating income comfortably covers monthly debt obligations.",
-                "category": "Solvency Risk"
-            },
-            {
-                "name": "Inventory Aging (>60 Days)",
-                "score": 45,
-                "status": "Moderate",
-                "details": "₹380,000 worth of raw material stock aging beyond 60 days in warehouse B.",
-                "category": "Operational Risk"
-            },
-            {
-                "name": "Supplier Single-Source Risk",
-                "score": 75,
-                "status": "High",
-                "details": "80% of aluminum alloy sourced from single vendor Zenith Metals.",
-                "category": "Supply Chain"
-            }
-        ],
-        "radar_chart_data": [
-            {"subject": "Liquidity", "score": 85, "benchmark": 70},
-            {"subject": "Solvency", "score": 82, "benchmark": 75},
-            {"subject": "Operational", "score": 60, "benchmark": 80},
-            {"subject": "Market Risk", "score": 74, "benchmark": 70},
-            {"subject": "Compliance", "score": 92, "benchmark": 85}
-        ],
-        "mitigation_suggestions": [
-            "Incentivize Apex Auto Corp for early payment (1.5% 10-net-30 discount).",
-            "Onboard secondary supplier for aluminum alloy to reduce Zenith Metals bottleneck.",
-            "Run discount clearance on 60+ day old inventory raw material."
-        ]
-    }
 
 class LoanScoreInputs(BaseModel):
     gst_filing_score: float = 90.0         # 0 - 100
@@ -922,228 +825,6 @@ _BUSINESS_EXPOSURE = {
 }
 
 # 6 structured global macro events
-_GLOBAL_EVENTS = [
-    {
-        "id": "evt-001",
-        "event_name": "China Anti-Dumping Duties on Polyester Staple Fiber Exports",
-        "event_name_ta": "சீனா போலியெஸ்டர் உளை ஏற்றுமதியில் கும்பலிடு உளக்கத் தீர்வு வரிகள்",
-        "category": "tariff",
-        "date": "2026-06-15",
-        "region": "china / asia",
-        "affected_materials": ["polyester", "synthetic fabric", "yarn"],
-        "affected_countries": ["china"],
-        "affected_currencies": [],
-        "severity": "high",
-        "description": "China has implemented new export tariff adjustments and anti-dumping regulations on polyester staple fiber and synthetic yarn exports to South Asia, causing immediate price shifts across Asian textile hubs.",
-        "description_ta": "சீனா தெற்கு ஆசியாவிற்கு போலியெஸ்டர் உளை ஏற்றுமதியில் புதிய ஏற்றுமதி வரி திருத்தங்கள் மற்றும் கும்பலிடு உளக்கத் ஒழுங்குமுறைகளை செயல்படுத்தியுள்ளது, ஆசிய திரையல் மூலங்களில் உடனடி விலை மாற்றங்களை ஏற்படுத்தியுள்ளது.",
-        "impact_templates": {
-            "polyester": {
-                "why_it_matters": "Polyester is your primary raw material input for synthetic weave production. Sourcing synthetic yarn from Chinese suppliers will see immediate tariff surcharges.",
-                "why_it_matters_ta": "போலியெஸ்டர் உங்கள் சிந்தெடிக் நூல் உற்பத்திக்கான முக்கிய மூலப்பொருள். சீன சப்ளையரர்களிடமிருந்து சிந்தெடிக் நூல் வாங்குவதில் உடனடி வரி கூடுதல் காணப்படும்.",
-                "estimated_impact": "Raw material cost increase: estimated 8-14% increase in polyester yarn procurement within 30-60 days.",
-                "estimated_impact_ta": "மூலப்பொருள் விலை உயர்வு: 30-60 நாட்களில் போலியெஸ்டர் நூல் கொள்மதலில் 8-14% அதிகரிப்பு நிகழலாம்.",
-                "action": "Diversify polyester procurement to domestic Indian suppliers (e.g. Reliance/Grasim) or increase stock buffer before Q3 price locks.",
-                "action_ta": "போலியெஸ்டர் கொள்மதியை உள்நாட்டு இந்திய சப்ளையரர்களிடம் (Reliance/Grasim) பரவலாக்குங்கள், அல்லது Q3 விலை பூட்டுக்கு முந்தி ஞிகழ்நிலையை அதிகரிக்கவும்."
-            },
-            "china": {
-                "why_it_matters": "China is one of your key supplier countries for synthetic raw materials. Customs inspection delays and tariff filings will extend lead times.",
-                "why_it_matters_ta": "சீனா உங்கள் சிந்தெடிக் மூலப்பொரள்களுக்கான முக்கிய சப்ளை நாடுகளில் ஒன்றாகும். குடியிவற்று தளி தாமதங்கள் மற்றும் வரி தாக்கல் முன்னளி நேரத்தை நீடிக்கும்.",
-                "estimated_impact": "Procurement lead time delay: estimated 2-4 week delay on imported Chinese synthetic fiber shipments.",
-                "estimated_impact_ta": "கொள்மதி முன்னளி நேர தாமதம்: இறக்குமதி சீன சிந்தெடிக் ஏர் ஏற்றுமதியில் 2-4 வார தாமதம் நிகழலாம்.",
-                "action": "Initiate purchase orders 3 weeks earlier than normal and request preliminary customs clearance documentation.",
-                "action_ta": "இயல்பு நிலையை விட 3 வாரம் முன்னதாக கொள்மதி உத்தரவுகளை தொடங்கி ஆரம்பிக்கவும் மற்றும் முன்னேர் குடியிவற்றல் பதிவுகளை கோரிக்கவும்."
-            }
-        }
-    },
-    {
-        "id": "evt-002",
-        "event_name": "US Farm Bill & Cotton Export Subsidy Reduction",
-        "event_name_ta": "மெரிக்க வேளாண்மை சட்டம் & பருத்தி ஏற்றுமதி மானிய குறைப்பு",
-        "category": "commodity",
-        "date": "2026-07-01",
-        "region": "usa / global",
-        "affected_materials": ["cotton", "yarn"],
-        "affected_countries": ["usa"],
-        "affected_currencies": [],
-        "severity": "high",
-        "description": "The US Department of Agriculture announced reduced export subsidies for long-staple cotton farmers, tightening global raw cotton export availability and driving up international ICE cotton futures by 14%.",
-        "description_ta": "மெரிக்க வேளாண்மை செயலகம் நீண்ட டெயில் பருத்தி விவசாயிகளுக்கான ஏற்றுமதி மானியங்களை குறைத்ததாக அறிவித்தது, உலக்களாவிய பருத்தி ஏற்றுமதி கிடைப்பை இறுக்கி ICE பருத்தி எதிர்கால முதலீடுகளை 14% உயர்த்தியது.",
-        "impact_templates": {
-            "cotton": {
-                "why_it_matters": "Cotton yarn constitutes 40% of your natural fabric blend. Higher global raw cotton prices directly inflate local mill yarn quotes in India.",
-                "why_it_matters_ta": "பருத்தி நூல் உங்கள் இயற்கை துணி கலவையில் 40% ஆகும். உலக்களாவிய பருத்தி விலை உயர்வு இந்தியாவில் தள்ளுபடி நூல் ஒப்பந்த விலைகளை நேரடியாக உயர்த்துகிறது.",
-                "estimated_impact": "Input cost inflation: potential 6-12% increase in cotton yarn procurement over the next 90 days.",
-                "estimated_impact_ta": "உள்ளீடு விலை உயர்வு: முந்தைய 90 நாட்களில் பருத்தி நூல் கொள்மதியில் 6-12% அதிகரிப்பு சாத்தியம்.",
-                "action": "Pre-book 60-day cotton yarn supply with local spinning mills at current fixed rates using current cash buffer (₹48.5L).",
-                "action_ta": "தற்போதைய பண இருப்பை (₹48.5L) பயன்படுத்தி உள்ளூர் நூல் தள்ளுமேடுகளிடம் 60 நாள் பருத்தி நூல் விநியோகத்தை முன் பதிவு செய்யுங்கள்."
-            },
-            "usa": {
-                "why_it_matters": "The USA is both a key supplier country for premium cotton fiber and your primary export market for finished garments.",
-                "why_it_matters_ta": "மெரிக்கா மேல்தரமான பருத்தி ஏருக்கான ஒரு முக்கிய சப்ளை நாடும் உலர்ந்த ஆடை முடிவுகளுக்கான உங்கள் முக்கிய ஏற்றுமதி சந்தையும் ஆகும்.",
-                "estimated_impact": "Margin pressure: estimated 4-7% profit margin squeeze unless output prices are adjusted.",
-                "estimated_impact_ta": "லாப மார்ஜின் அழுத்தம்: வெளியீட்டு விலைகள் திருத்தப்படாவிட்டால் 4-7% லாப மார்ஜின் குறைய்வு.",
-                "action": "Review contract pricing with US buyers to include raw material escalator clauses.",
-                "action_ta": "மூலப்பொருள் உயர்வு உட்பிரிவு ழெய்ல் சேர்க்க மெரிக்க வாங்குபவர்களுடன் ஒப்பந்த விலையிட்டலை மதிப்பாய்வு செய்யுங்கள்."
-            }
-        }
-    },
-    {
-        "id": "evt-003",
-        "event_name": "Red Sea Freight Container Rate Surge & Cape Rerouting",
-        "event_name_ta": "செம்மறிக்கடல் சரக்கு கப்பல் கட்டணம் உயர்வு & கேப் வழிப்புத்திப்பண்",
-        "category": "shipping",
-        "date": "2026-07-10",
-        "region": "middle east / europe",
-        "affected_materials": [],
-        "affected_countries": ["germany", "vietnam", "china"],
-        "affected_currencies": [],
-        "severity": "medium",
-        "description": "Container shipping lines serving Asia-to-Europe and US East Coast lanes have reinstated peak season surcharges ($1,200/TEU) due to vessel rerouting around the Cape of Good Hope.",
-        "description_ta": "ஆசியா-ஐரோப்பா மற்றும் மெரிக்க கிழக்கு கரைப்புக்கு சேவை செய்யும் சரக்கு கப்பல் கம்பெனிகள் ெளியும் குட்டை நூற்களுக்கு உயர்திய முடிவு மாத கூடுதல் கட்டணங்களை ($1,200/TEU) மீண்டும் அமல்படுத்தியுள்ளனர்.",
-        "impact_templates": {
-            "germany": {
-                "why_it_matters": "Specialty textile dyes and finishing chemicals imported from German chemical suppliers use Western maritime transit routes.",
-                "why_it_matters_ta": "ஜர்மனிய ராசாயன சப்ளையரர்களிடமிருந்து இறக்குமதி சிறப்பு திரையல் சாயங்கள் மற்றும் முடிப்பு ராசாயனங்கள் மேற்கத்திய கடல் கடப்பு மார்க்கர்களை பயன்படுத்துகின்றன.",
-                "estimated_impact": "Logistics cost increase: estimated 15-25% hike in import freight charges; 10-18 day transit delay.",
-                "estimated_impact_ta": "லாஜிஸ்டிக்ஸ் விலை உயர்வு: இறக்குமதி சரக்குக் கட்டணங்களில் 15-25% உயர்வு; 10-18 நாள் கடப்பு தாமதம்.",
-                "action": "Consolidate chemical import shipments into larger quarterly orders to minimize per-container surcharges.",
-                "action_ta": "கப்பல் ஒன்றுக்கு கூடுதல் கட்டணத்தை குறைக்க இறக்குமதி ராசாயன ஏற்றுமதி சரக்குகளை பெரிய திரைமாத உத்தரவுகளாக ௎க்கிப்படுத்தவும்."
-            },
-            "vietnam": {
-                "why_it_matters": "Vietnam is a secondary sourcing hub for specialized textile trims and accessories.",
-                "why_it_matters_ta": "வியட்நாம் சிறப்பு திரையல் ட்ரிம்ஸ் மற்றும் அககரம்களுக்கான இரண்டாம் நிலை சப்ளை முட்டமாகும்.",
-                "estimated_impact": "Shipping delay: estimated 1-3 week delay for feeder vessel transfers.",
-                "estimated_impact_ta": "கப்பல் தாமதம்: எம்முடியு கப்பல் மாற்றத்திற்கு 1-3 வார தாமதம்.",
-                "action": "Maintain minimum 30-day stock reserve for essential garment trims and dyes.",
-                "action_ta": "முக்கிய ஆடை ட்ரிம்ஸ் மற்றும் ராசாயன சாயங்களுக்கு குறைந்தது 30 நாள் ஞிகழ்நிலையை பராமரிக்கவும்."
-            }
-        }
-    },
-    {
-        "id": "evt-004",
-        "event_name": "USD/INR Exchange Rate Depreciation (6% Slide)",
-        "event_name_ta": "USD/INR மாற்று விகித தெளிவு (6% குறைவு)",
-        "category": "currency",
-        "date": "2026-06-20",
-        "region": "india / global",
-        "affected_materials": [],
-        "affected_countries": [],
-        "affected_currencies": ["usd", "inr"],
-        "severity": "medium",
-        "description": "The Indian Rupee has weakened from ₹83.10 to ₹88.25 per USD over the last 90 days amidst rising crude oil prices and global dollar strength.",
-        "description_ta": "கடந்த 90 நாட்களில் எண்ணெய் விலை உயர்வு மற்றும் உலகளாவிய டாலர் வலிமையால் இந்திய ரூபாய் ஒரு USD-க்கு ₹83.10 இருந்து ₹88.25 ஆக மதிப்பிழந்துள்ளது.",
-        "impact_templates": {
-            "usd": {
-                "why_it_matters": "Your imported polyester and dyes are invoiced in USD, making raw material imports more expensive in INR terms.",
-                "why_it_matters_ta": "உங்கள் இறக்குமதி போலியெஸ்டர் மற்றும் ராசாயன சாயங்கள் USD இல் கணக்கிடப்படுகின்றன, INR மதிப்பில் மூலப்பொருள் இறக்குமதி மிகவும் இலக்கு ஆகிறது.",
-                "estimated_impact": "Landed cost increase: estimated 5-8% increase in INR outlay for USD-denominated raw material invoices.",
-                "estimated_impact_ta": "இறக்குமதி விலை உயர்வு: USD மூலப்பொருள் விலைப்பட்டியல்கடுக்கான INR செலவில் 5-8% அதிகரிப்பு.",
-                "action": "Utilize USD export proceeds from US/EU clients to settle import payables directly via EEFC account, avoiding conversion fees.",
-                "action_ta": "மாற்று கட்டணங்களை தவிர்த்து, இறக்குமதி செலுத்தல்களை நேரடியாக தீர்க்க US/EU வாடகர்களிடமிருந்து USD ஏற்றுமதி வருமானத்தை EEFC கணக்கு மூலம் பயன்படுத்துங்கள்."
-            },
-            "inr": {
-                "why_it_matters": "Rupee depreciation enhances your competitiveness for garment exports to US and EU buyers.",
-                "why_it_matters_ta": "ரூபாய் மதிப்பிழந்தல் US மற்றும் EU வாங்குபவர்களிடம் ஆடை ஏற்றுமதிக்கான உங்கள் போட்டித்தன்மையை மேம்படுத்துகிறது.",
-                "estimated_impact": "Export revenue gain: potential 4-6% boost in realized INR revenue from USD export billing.",
-                "estimated_impact_ta": "ஏற்றுமதி வருமான உயர்வு: USD ஏற்றுமதி கணக்கிடலிலிருந்து INR வருமானத்தில் 4-6% உயர்வு சாத்தியம்.",
-                "action": "Incentivize US buyers for early payment terms in USD to lock in favorable exchange conversion rates.",
-                "action_ta": "சாதகமான மாற்று விகிதங்களை பூட்ட மெரிக்க வாங்குபவர்களை USD இல் முன்கூட்டிய கட்டண விதிமுறைகளுக்கு ஊக்கமளிக்கவும்."
-            }
-        }
-    },
-    {
-        "id": "evt-005",
-        "event_name": "Global Lithium & Battery Cobalt Mining Sanctions in DRC",
-        "category": "sanction",
-        "date": "2026-07-05",
-        "region": "africa",
-        "affected_materials": ["lithium", "cobalt", "nickel"],
-        "affected_countries": ["dr congo", "chile"],
-        "affected_currencies": [],
-        "severity": "high",
-        "description": "International sanctions on Democratic Republic of Congo mining concessions have halted 25% of global cobalt supply, spiking battery EV prices.",
-        "impact_templates": {}
-    },
-    {
-        "id": "evt-006",
-        "event_name": "Black Sea Grain Corridor Suspension & Wheat Export Ban",
-        "category": "commodity",
-        "date": "2026-07-18",
-        "region": "eastern europe",
-        "affected_materials": ["wheat", "grain", "fertilizer"],
-        "affected_countries": ["russia", "ukraine"],
-        "affected_currencies": [],
-        "severity": "medium",
-        "description": "Suspension of the Black Sea agricultural corridor has triggered a 22% spike in global wheat and fertilizer futures.",
-        "impact_templates": {}
-    },
-    {
-        "id": "evt-007",
-        "event_name": "Strait of Malacca Port Congestion & Asian Feeder Container Bottlenecks",
-        "event_name_ta": "மலாக்கா ஜலசந்தி துறைமுக நெரிசல் & ஆசிய கொள்கலன் தாமதங்கள்",
-        "category": "shipping",
-        "date": "2026-07-22",
-        "region": "southeast asia / east asia",
-        "affected_materials": ["polyester", "synthetic_yarn", "dyes", "cotton"],
-        "affected_countries": ["china", "vietnam", "singapore", "india"],
-        "affected_currencies": ["usd"],
-        "severity": "high",
-        "description": "Severe port congestion at Malacca Strait feeder hubs has created a 14-day container backlog across South and East Asian maritime shipping lanes.",
-        "description_ta": "மலாக்கா ஜலசந்தி துறைமுகங்களில் கடுமையான நெரிசல் காரணமாக தெற்கு மற்றும் கிழக்கு ஆசிய கப்பல் பாதைகளில் 14 நாட்கள் கொள்கலன் தாமதம் ஏற்பட்டுள்ளது.",
-        "impact_templates": {
-            "polyester": {
-                "why_it_matters": "Synthetic yarn shipments from Asian suppliers are delayed in regional port feeder queues.",
-                "why_it_matters_ta": "ஆசிய சப்ளையர்களிடமிருந்து செயற்கை நூல் சரக்குகள் பிராந்திய துறைமுக வரிசைகளில் தாமதமாகின்றன.",
-                "estimated_impact": "Transit delay: 10-16 days additional lead time; potential production line buffer erosion.",
-                "estimated_impact_ta": "போக்குவரத்து தாமதம்: 10-16 நாட்கள் கூடுதல் கால அவகாசம்; தயாரிப்பு வரிசை பாதிக்கப்படலாம்.",
-                "action": "Re-allocate near-term raw material orders to domestic Indian yarn distributors or local buffer stock.",
-                "action_ta": "அண்மைக்கால மூலப்பொருள் ஆர்டர்களை இந்திய உள்நாட்டு நூல் விநியோகஸ்தர்களுக்கு மாற்றவும்."
-            },
-            "china": {
-                "why_it_matters": "China is a key sourcing market for your specialized yarn and textile chemical inputs.",
-                "why_it_matters_ta": "சீனா உங்களின் சிறப்பு நூல் மற்றும் ஜவுளி இரசாயன உள்ளீடுகளுக்கான முக்கிய கொள்முதல் சந்தையாகும்.",
-                "estimated_impact": "Supply delay: 2-3 week delay in receiving origin consignments.",
-                "estimated_impact_ta": "விநியோக தாமதம்: மூலப் பொருட்களைப் பெறுவதில் 2-3 வாரங்கள் தாமதம்.",
-                "action": "Increase safety stock reserve for high-turnover synthetic yarn inputs to 45 days.",
-                "action_ta": "செயற்கை நூல் உள்ளீடுகளுக்கான பாதுகாப்பு பங்கு இருப்பை 45 நாட்களாக உயர்த்தவும்."
-            }
-        }
-    },
-    {
-        "id": "evt-008",
-        "event_name": "Middle East Maritime Corridor Flare & Energy Supply Risk Surge",
-        "event_name_ta": "மத்திய கிழக்கு கடல் வழித்தட பதற்றம் & எரிசக்தி விநியோக ஆபத்து",
-        "category": "commodity",
-        "date": "2026-07-25",
-        "region": "middle east",
-        "affected_materials": ["dyes", "polyester", "crude_oil", "petrochemicals"],
-        "affected_countries": ["saudi arabia", "uae", "iran", "germany"],
-        "affected_currencies": ["usd", "inr"],
-        "severity": "high",
-        "description": "Geopolitical escalation near key Middle East maritime transit bottlenecks has driven up war risk marine insurance premiums and global crude oil futures.",
-        "description_ta": "மத்திய கிழக்கு கடல் போக்குவரத்து பகுதிகளில் நிலவும் பதற்றம் காரணமாக காப்பீட்டு பிரீமியங்கள் மற்றும் கச்சா எண்ணெய் விலை உயர்ந்துள்ளது.",
-        "impact_templates": {
-            "dyes": {
-                "why_it_matters": "Petrochemical-derived raw materials for textile dyes face price pressure from rising global crude oil feedstock.",
-                "why_it_matters_ta": "ஜவுளி சாயங்களுக்கான பெட்ரோ கெமிக்கல் மூலப்பொருட்கள் கச்சா எண்ணெய் விலை உயர்வால் விலை அழுத்தத்தை எதிர்கொள்கின்றன.",
-                "estimated_impact": "Cost surge: 7-12% price increase in chemical dye procurement over the next quarter.",
-                "estimated_impact_ta": "செலவு உயர்வு: அடுத்த காலாண்டில் இரசாயன சாயம் கொள்முதலில் 7-12% விலை உயர்வு.",
-                "action": "Pre-book quarterly dye supply contracts with domestic vendors at current fixed rates.",
-                "action_ta": "தற்போதைய நிலையான கட்டணத்தில் உள்நாட்டு விற்பனையாளர்களுடன் காலாண்டு சாயம் விநியோக ஒப்பந்தங்களை முன்பதிவு செய்யவும்."
-            },
-            "usd": {
-                "why_it_matters": "Energy market uncertainty increases global USD demand and import billing outlay.",
-                "why_it_matters_ta": "எரிசக்தி சந்தை நிச்சயமற்ற தன்மை உலகளாவிய டாலர் தேவையை உயர்த்துகிறது.",
-                "estimated_impact": "Currency margin pressure: higher INR outlay for USD-denominated raw material invoices.",
-                "estimated_impact_ta": "நாணய லாப வரம்பு அழுத்தம்: டாலர் இன்வாய்ஸ்களுக்கு அதிக ரூபாய் செலவு.",
-                "action": "Hedge pending USD import payables using forward contracts or EEFC balances.",
-                "action_ta": "முன்னோக்கி ஒப்பந்தங்கள் அல்லது EEFC இருப்புகளைப் பயன்படுத்தி நிலுவையிலுள்ள டாலர் இறக்குமதி தொகைகளைப் பாதுகாக்கவும்."
-            }
-        }
-    }
-]
-
-
 def _match_global_events(exposure: Dict[str, Any], events: List[Dict], lang: str = "en") -> List[Dict]:
     """
     Pure rule-based matching: for each event, check material AND country overlap
@@ -1232,6 +913,81 @@ def _match_global_events(exposure: Dict[str, Any], events: List[Dict], lang: str
     return matched
 
 
+_STATIC_DATA_SOURCES = [
+    "LME Commodities", "WTO Tariff Portal", "Freightos Baltic Index",
+    "RBI Exchange Rates", "Ministry of Commerce India", "Curated Dataset"
+]
+_CURRENTS_DATA_SOURCES = [
+    "LME Commodities", "WTO Tariff Portal", "Freightos Baltic Index",
+    "RBI Exchange Rates", "Ministry of Commerce India", "Currents News API"
+]
+
+
+def _resolve_events_for_exposure(exposure: Dict[str, Any]) -> tuple[List[Dict], str, List[str]]:
+    """
+    Shared pipeline for both global-risk endpoints.
+
+    Returns (events, last_updated_iso, data_sources) where:
+      - events is the fully-typed MythOS event list to pass to _match_global_events
+      - last_updated_iso is an ISO-8601 date string reflecting when the data was fetched
+      - data_sources is the list to include in the API response
+
+    Branch log labels (visible in server logs during demo):
+      [CACHE HIT]      — served from SQLite cache, no API call made
+      [PROVIDER OK]    — live data fetched and enriched via active provider
+      [STATIC FALLBACK] — provider unavailable or empty, using curated dataset
+    """
+    import datetime
+
+    cache_key = cache_key_for_exposure(exposure)
+
+    # ── 1. Cache check ────────────────────────────────────────────────────────
+    cached = get_cached_events(cache_key)
+    if cached is not None:
+        last_updated = date.today().isoformat()
+        _p = get_provider()
+        sources = _STATIC_DATA_SOURCES if isinstance(_p, StaticProvider) else _CURRENTS_DATA_SOURCES
+        logger.info(
+            "[CACHE HIT] key=%s  events=%d  provider=%s",
+            cache_key[:12], len(cached), type(_p).__name__
+        )
+        return cached, last_updated, sources
+
+    # ── 2. Cache miss → try active provider ──────────────────────────────────
+    provider = get_provider()
+    provider_name = type(provider).__name__
+
+    try:
+        raw = provider.fetch_raw_events(exposure)
+        if not raw:
+            raise ProviderUnavailableError("Provider returned an empty article list.")
+
+        # Enrich raw articles → typed MythOS event schema
+        events = enrich_events_to_schema(raw, exposure)
+        if not events:
+            raise ProviderUnavailableError("Enrichment returned zero events.")
+
+        last_updated = date.today().isoformat()
+        set_cached_events(cache_key, events)
+        is_live = not isinstance(provider, StaticProvider)
+        chosen_sources = _CURRENTS_DATA_SOURCES if is_live else _STATIC_DATA_SOURCES
+        logger.info(
+            "[PROVIDER OK] provider=%s  raw=%d  enriched=%d  key=%s",
+            provider_name, len(raw), len(events), cache_key[:12]
+        )
+        return events, last_updated, chosen_sources
+
+    except ProviderUnavailableError as exc:
+        logger.warning(
+            "[STATIC FALLBACK] provider=%s unavailable (%s). Using curated dataset.",
+            provider_name, exc
+        )
+
+    # ── 3. Fallback to static curated dataset ─────────────────────────────────
+    logger.info("[STATIC FALLBACK] Serving _GLOBAL_EVENTS  events=%d", len(_GLOBAL_EVENTS))
+    return _GLOBAL_EVENTS, "2026-07-28", _STATIC_DATA_SOURCES
+
+
 @app.get("/api/global-risk")
 def get_global_risk_data(lang: str = "en"):
     """
@@ -1239,21 +995,22 @@ def get_global_risk_data(lang: str = "en"):
     and only the events that are relevant to this business with pre-written impact cards.
     Accepts ?lang=ta to return Tamil translations of all impact text.
     """
-    matched = _match_global_events(_BUSINESS_EXPOSURE, _GLOBAL_EVENTS, lang=lang)
+    events, last_updated, data_sources = _resolve_events_for_exposure(_BUSINESS_EXPOSURE)
+    matched = _match_global_events(_BUSINESS_EXPOSURE, events, lang=lang)
     filtered_out = [
         {"id": e["id"], "event_name": e.get("event_name_ta", e["event_name"]) if lang == "ta" else e["event_name"], "category": e["category"]}
-        for e in _GLOBAL_EVENTS
+        for e in events
         if e["id"] not in {m["id"] for m in matched}
     ]
     return {
         "business_exposure": _BUSINESS_EXPOSURE,
-        "total_events_scanned": len(_GLOBAL_EVENTS),
+        "total_events_scanned": len(events),
         "matched_events": len(matched),
         "filtered_out_count": len(filtered_out),
         "filtered_out_events": filtered_out,
         "events": matched,
-        "last_updated": "2026-07-28",
-        "data_sources": ["LME Commodities", "WTO Tariff Portal", "Freightos Baltic Index", "RBI Exchange Rates", "Ministry of Commerce India"]
+        "last_updated": last_updated,
+        "data_sources": data_sources,
     }
 
 
@@ -1278,28 +1035,31 @@ def match_global_risk_for_uploaded_profile(exposure: Dict[str, Any], lang: str =
         "logistics_modes": exposure.get("logistics_modes", ["road"]),
     }
 
-    matched = _match_global_events(safe_exposure, _GLOBAL_EVENTS, lang=lang)
+    events, last_updated, data_sources = _resolve_events_for_exposure(safe_exposure)
+    matched = _match_global_events(safe_exposure, events, lang=lang)
     filtered_out = [
         {"id": e["id"], "event_name": e["event_name"], "category": e["category"]}
-        for e in _GLOBAL_EVENTS
+        for e in events
         if e["id"] not in {m["id"] for m in matched}
     ]
 
     logger.info(
-        f"[/api/global-risk/match] Custom profile '{safe_exposure['name']}' — "
-        f"materials: {safe_exposure['materials']}, countries: {safe_exposure['supplier_countries']} "
-        f"→ {len(matched)} matched events"
+        "[/api/global-risk/match] profile='%s'  materials=%s  countries=%s  matched=%d",
+        safe_exposure["name"],
+        safe_exposure["materials"],
+        safe_exposure["supplier_countries"],
+        len(matched),
     )
 
     return {
         "business_exposure": safe_exposure,
-        "total_events_scanned": len(_GLOBAL_EVENTS),
+        "total_events_scanned": len(events),
         "matched_events": len(matched),
         "filtered_out_count": len(filtered_out),
         "filtered_out_events": filtered_out,
         "events": matched,
-        "last_updated": "2026-07-28",
-        "data_sources": ["LME Commodities", "WTO Tariff Portal", "Freightos Baltic Index", "RBI Exchange Rates", "Ministry of Commerce India"]
+        "last_updated": last_updated,
+        "data_sources": data_sources,
     }
 
 class ChatRequest(BaseModel):
@@ -1877,6 +1637,190 @@ def _parse_csv_text(text: str) -> List[Dict]:
     
     return sorted_rows
 
+
+def _detect_csv_mapping_with_gemini(headers: List[str], sample_rows: List[Dict[str, str]]) -> Dict[str, Any]:
+    """
+    Uses Gemini (gemini-3.6-flash) to intelligently map arbitrary CSV headers to standard schema:
+    - date: column for transaction date
+    - description: column for transaction description/payee/narration
+    - EITHER amount (single column) OR debit + credit (separate columns)
+    Includes a robust rule-based heuristic fallback if Gemini API is unavailable.
+    """
+    cleaned_headers = [h.strip() for h in headers if h and h.strip()]
+
+    def _heuristic_mapping():
+        date_col = None
+        desc_col = None
+        debit_col = None
+        credit_col = None
+        amount_col = None
+
+        for h in cleaned_headers:
+            hl = h.lower()
+            if not date_col and any(k in hl for k in ["date", "txn_dt", "txndate", "val_dt", "posting"]):
+                date_col = h
+            elif not desc_col and any(k in hl for k in ["narration", "particular", "desc", "remark", "detail", "payee", "party"]):
+                desc_col = h
+            elif not debit_col and any(k in hl for k in ["withdrawal", "debit", "dr_amt", "dr amount", "dr"]):
+                debit_col = h
+            elif not credit_col and any(k in hl for k in ["deposit", "credit", "cr_amt", "cr amount", "cr"]):
+                credit_col = h
+            elif not amount_col and any(k in hl for k in ["amount", "amt", "net_amount", "txn_amount"]):
+                amount_col = h
+
+        if not date_col and len(cleaned_headers) > 0:
+            date_col = cleaned_headers[0]
+        if not desc_col and len(cleaned_headers) > 1:
+            desc_col = cleaned_headers[1]
+
+        is_split = bool(debit_col and credit_col)
+        explanation = (
+            f"Mapped '{date_col}' to Date, '{desc_col}' to Description, "
+            f"'{debit_col}' to Debit (-) and '{credit_col}' to Credit (+)."
+            if is_split else
+            f"Mapped '{date_col}' to Date, '{desc_col}' to Description and '{amount_col or (cleaned_headers[2] if len(cleaned_headers)>2 else '')}' to Amount."
+        )
+        return {
+            "date": date_col,
+            "description": desc_col,
+            "amount": None if is_split else (amount_col or (cleaned_headers[2] if len(cleaned_headers) > 2 else None)),
+            "debit": debit_col if is_split else None,
+            "credit": credit_col if is_split else None,
+            "explanation": explanation,
+            "confidence": "high" if (date_col and desc_col and (is_split or amount_col)) else "low"
+        }
+
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        logger.info("[CSV MAPPING] No GEMINI_API_KEY found, using rule-based mapping heuristic")
+        return _heuristic_mapping()
+
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+You are an expert financial data engineer specialized in Indian bank statements, accounting exports, and ERP transaction CSVs.
+Analyze the following CSV headers and sample data rows to map them to our standard financial schema.
+
+COLUMNS IN FILE:
+{json.dumps(cleaned_headers)}
+
+SAMPLE ROWS (first {len(sample_rows)} rows):
+{json.dumps(sample_rows, indent=2)}
+
+REQUIREMENTS:
+1. Identify the column name that represents the transaction DATE ("date").
+2. Identify the column name that represents the transaction DESCRIPTION / Narration / Particulars / Payee ("description").
+3. Determine whether transactions use:
+   - Separate DEBIT (withdrawal/outflow) and CREDIT (deposit/inflow) columns: set "debit" and "credit" to their exact header names, and set "amount": null.
+   - OR a SINGLE transaction amount column: set "amount" to its exact header name, and set "debit": null, "credit": null.
+4. "confidence": "high" if clearly identified, or "low" if ambiguous.
+5. "explanation": a concise single-sentence summary of the mapping.
+
+Return ONLY a raw JSON object matching this schema (no markdown, no ```json ```):
+{{
+  "date": "Exact Header Name",
+  "description": "Exact Header Name",
+  "amount": "Exact Header Name or null",
+  "debit": "Exact Header Name or null",
+  "credit": "Exact Header Name or null",
+  "explanation": "Clear explanation of column mapping",
+  "confidence": "high"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=[prompt]
+        )
+        resp_text = (response.text or "").strip()
+        if resp_text.startswith("```"):
+            resp_text = re.sub(r'^```(?:json)?\s*', '', resp_text)
+            resp_text = re.sub(r'\s*```$', '', resp_text)
+
+        mapping_data = json.loads(resp_text)
+        if mapping_data.get("date") in cleaned_headers and mapping_data.get("description") in cleaned_headers:
+            logger.info("[CSV MAPPING GEMINI SUCCESS] Detected mapping: %r", mapping_data)
+            return mapping_data
+        else:
+            logger.warning("[CSV MAPPING GEMINI MISMATCH] Gemini returned non-existent headers: %r", mapping_data)
+            return _heuristic_mapping()
+    except Exception as exc:
+        logger.error("[CSV MAPPING GEMINI ERROR] %s, falling back to heuristic", exc)
+        return _heuristic_mapping()
+
+
+def _parse_csv_with_mapping(text: str, mapping: Dict[str, Any]) -> List[Dict]:
+    """
+    Parse CSV text using an explicit column mapping dictionary:
+    {
+      "date": str,
+      "description": str,
+      "amount": Optional[str],
+      "debit": Optional[str],
+      "credit": Optional[str]
+    }
+    Returns sorted list of [{date: 'YYYY-MM-DD', description: str, amount: float}].
+    """
+    rows = []
+    reader = csv.DictReader(io.StringIO(text.strip()))
+    date_col = mapping.get("date")
+    desc_col = mapping.get("description")
+    amt_col = mapping.get("amount")
+    dr_col = mapping.get("debit")
+    cr_col = mapping.get("credit")
+
+    for i, raw_row in enumerate(reader):
+        if not raw_row:
+            continue
+
+        raw_date = str(raw_row.get(date_col, "")).strip() if date_col else ""
+        raw_desc = str(raw_row.get(desc_col, "")).strip() if desc_col else "Transaction"
+
+        amount = 0.0
+        try:
+            if amt_col and raw_row.get(amt_col) is not None and str(raw_row.get(amt_col, "")).strip():
+                val_str = str(raw_row.get(amt_col, "")).strip()
+                amt_clean = re.sub(r'[^\d\.\-\+]', '', val_str)
+                amount = float(amt_clean) if amt_clean else 0.0
+                if "dr" in val_str.lower() and amount > 0:
+                    amount = -amount
+            else:
+                raw_dr = str(raw_row.get(dr_col, "")).strip() if dr_col else ""
+                raw_cr = str(raw_row.get(cr_col, "")).strip() if cr_col else ""
+                dr_clean = re.sub(r'[^\d\.]', '', raw_dr)
+                cr_clean = re.sub(r'[^\d\.]', '', raw_cr)
+                dr_val = float(dr_clean) if dr_clean else 0.0
+                cr_val = float(cr_clean) if cr_clean else 0.0
+                if dr_val > 0:
+                    amount = -dr_val
+                elif cr_val > 0:
+                    amount = cr_val
+                else:
+                    amount = 0.0
+
+            # Normalize date
+            d_clean = raw_date.split(" ")[0].split("T")[0].replace("/", "-").strip()
+            parts = d_clean.split("-")
+            if len(parts) == 3:
+                if len(parts[0]) == 4:
+                    norm_date = f"{int(parts[0]):04d}-{int(parts[1]):02d}-{int(parts[2]):02d}"
+                elif len(parts[2]) == 4:
+                    norm_date = f"{int(parts[2]):04d}-{int(parts[1]):02d}-{int(parts[0]):02d}"
+                else:
+                    norm_date = d_clean
+            else:
+                norm_date = d_clean
+
+            date.fromisoformat(norm_date)
+            rows.append({"date": norm_date, "description": raw_desc or "Transaction", "amount": amount})
+        except Exception as exc:
+            logger.warning("[CSV MAPPED PARSE SKIP] Row %d failed parsing: %s", i + 1, exc)
+            continue
+
+    sorted_rows = sorted(rows, key=lambda r: r["date"])
+    return sorted_rows
+
 def _detect_cash_strain_alerts(rows: List[Dict], threshold: float, current_balance: float, lang: str = "en") -> List[Dict[str, Any]]:
     """
     Scans raw transaction rows for recurring outflow patterns (salary, EMI, rent, GST, utilities, vendors).
@@ -2325,6 +2269,62 @@ def _derive_all_from_csv(rows: List[Dict], threshold: float = 500000.0, profile:
     }
 
 
+@app.post("/api/cash-flow/detect-csv-mapping")
+async def detect_csv_mapping(
+    file: UploadFile = File(None),
+    csv_text: str = Form(None),
+):
+    """
+    Analyze CSV headers & sample rows using Gemini to propose column mappings
+    and a formatted preview of the first 15 rows without committing to profile.
+    """
+    try:
+        if file and file.filename:
+            raw = await file.read()
+            text = raw.decode("utf-8", errors="replace")
+        elif csv_text:
+            text = csv_text
+        else:
+            return {"error": "No CSV data provided. Please select or paste a CSV file."}
+
+        reader = csv.DictReader(io.StringIO(text.strip()))
+        headers = list(reader.fieldnames or [])
+        if not headers:
+            return {"error": "Could not read header columns from CSV."}
+
+        sample_rows = []
+        for i, row in enumerate(reader):
+            if i >= 5:
+                break
+            sample_rows.append(row)
+
+        detected_mapping = _detect_csv_mapping_with_gemini(headers, sample_rows)
+        all_parsed = _parse_csv_with_mapping(text, detected_mapping)
+        if not all_parsed:
+            return {"error": "Could not parse any valid rows with detected mapping. Please verify the CSV format."}
+
+        preview_rows = []
+        for r in all_parsed[:15]:
+            preview_rows.append({
+                "date": r["date"],
+                "description": r["description"],
+                "amount": r["amount"],
+                "type": "inflow" if r["amount"] >= 0 else "outflow"
+            })
+
+        return {
+            "status": "mapping_detected",
+            "detected_mapping": detected_mapping,
+            "available_headers": headers,
+            "preview_rows": preview_rows,
+            "total_rows_estimated": len(all_parsed),
+            "raw_csv_text": text
+        }
+    except Exception as exc:
+        logger.error("[DETECT CSV MAPPING ERROR] %s", exc)
+        return {"error": f"Error detecting CSV mapping: {str(exc)}"}
+
+
 @app.post("/api/cash-flow/analyze-csv-full")
 async def analyze_csv_full(
     file: UploadFile = File(None),
@@ -2336,11 +2336,11 @@ async def analyze_csv_full(
     women_owned: bool = Form(False),
     export_oriented: bool = Form(False),
     sc_st_owned: bool = Form(False),
+    column_mapping: Optional[str] = Form(None),
 ):
     """
     Accept multipart CSV upload OR raw csv_text string, return full dynamic dashboard telemetry.
-    Optional profile fields (sector, business_type, state, women_owned, export_oriented,
-    sc_st_owned) are forwarded to the rule-based scheme eligibility engine.
+    Supports explicit column_mapping (JSON string) or automatic detection.
     """
     try:
         if file and file.filename:
@@ -2351,8 +2351,45 @@ async def analyze_csv_full(
         else:
             return {"error": "No CSV data provided. Please select or paste a CSV file."}
 
-        rows = _parse_csv_text(text)
+        rows = []
+        if column_mapping and column_mapping.strip():
+            try:
+                mapping_dict = json.loads(column_mapping)
+                rows = _parse_csv_with_mapping(text, mapping_dict)
+            except Exception as e:
+                logger.warning("[ANALYZE CSV FULL] Failed parsing with explicit column_mapping: %s", e)
+
         if not rows:
+            rows = _parse_csv_text(text)
+
+        if not rows:
+            # Standard parsing failed — detect mapping and return mapping_required response
+            reader = csv.DictReader(io.StringIO(text.strip()))
+            headers = list(reader.fieldnames or [])
+            if headers:
+                sample_rows = []
+                for i, row in enumerate(reader):
+                    if i >= 5:
+                        break
+                    sample_rows.append(row)
+                detected = _detect_csv_mapping_with_gemini(headers, sample_rows)
+                all_parsed = _parse_csv_with_mapping(text, detected)
+                if all_parsed:
+                    preview_rows = [{
+                        "date": r["date"],
+                        "description": r["description"],
+                        "amount": r["amount"],
+                        "type": "inflow" if r["amount"] >= 0 else "outflow"
+                    } for r in all_parsed[:15]]
+                    return {
+                        "status": "mapping_required",
+                        "detected_mapping": detected,
+                        "available_headers": headers,
+                        "preview_rows": preview_rows,
+                        "total_rows_estimated": len(all_parsed),
+                        "raw_csv_text": text
+                    }
+
             return {"error": "Could not parse any valid rows from CSV. Please check column headers (date, description, amount)."}
 
         profile = {
