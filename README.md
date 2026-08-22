@@ -27,17 +27,27 @@ MythOS gives an MSME owner one place to see and act on their financial position:
 MythOS/
 ├── backend/
 │   ├── main.py              ← FastAPI server (all API endpoints & business logic)
-│   └── requirements.txt     ← Python dependencies (FastAPI, google-genai, etc.)
+│   ├── event_cache.py       ← SQLite TTL cache for enriched macro risk events
+│   ├── requirements.txt     ← Python dependencies (FastAPI, google-genai, requests, etc.)
+│   ├── providers/           ← Pluggable News Provider Subsystem
+│   │   ├── base.py          ← Abstract NewsProvider interface
+│   │   ├── currents_provider.py ← Currents News API adapter
+│   │   ├── static_provider.py   ← Permanent curated dataset fallback
+│   │   ├── factory.py       ← Provider factory with graceful fallback
+│   │   └── enrichment.py    ← Gemini 3.6 Flash event normalizer & bilingual synthesizer
+│   └── .cache/
+│       └── events.db        ← SQLite database storing cached events
 ├── frontend/
 │   ├── index.html           ← Full React app (CDN-based, no build step)
-│   └── key.env              ← Environment variables (GEMINI_API_KEY)
+│   └── key.env              ← Environment variables (GEMINI_API_KEY, CURRENTS_API_KEY, NEWS_PROVIDER)
 ├── requirements.txt         ← Root-level dependency list (used for local dev)
 └── working.md               ← Detailed engineering notes, algorithms, and changelog
 ```
 
 - **Backend:** FastAPI, serving both the REST API and the static frontend.
 - **Frontend:** A single-file React app loaded via CDN — no bundler required to run it.
-- **AI Copilot:** Uses the Google Gemini API (`gemini-3.6-flash`), with a condensed, topic-aware business context injected into the system prompt (not a raw data dump) so responses stay grounded in real numbers.
+- **AI Copilot & OCR:** Uses the Google Gemini API (`gemini-3.6-flash`), with a condensed, topic-aware business context injected into the system prompt (not a raw data dump) so responses stay grounded in real numbers.
+- **Dynamic Global Risk Intelligence:** Pluggable provider subsystem (`backend/providers/`) combining Currents News API ingestion, Gemini 3.6 Flash bilingual schema enrichment, SQLite TTL caching (default 6h), and an unyielding curated static fallback dataset.
 - **Forecasting & scoring:** Cash-flow projection and the loan scorer are rule-based and deterministic — no LLM dependency, so they're fast, explainable, and don't require an API key to work.
 - **Live Market Indicators:** Fetches real-time market signals (USD/INR via Frankfurter API, Crude Oil, Cotton, and India CPI Inflation via World Bank API) with `sessionStorage` caching.
 - **Multilingual Support:** English & Tamil (தமிழ்) toggle via a single header selector backed by a centralized label mapping dictionary and Gemini system-prompt language steering.
@@ -50,15 +60,20 @@ MythOS/
 pip install -r backend/requirements.txt
 ```
 
-### 2. Configure your Gemini API key (optional — enables AI Copilot chat & Ledger OCR)
+### 2. Configure your API keys (in `frontend/key.env`)
 
-Create a `key.env` file inside `frontend/`:
+Create or update `key.env` inside `frontend/`:
 
+```env
+GEMINI_API_KEY=your-gemini-api-key-here
+CURRENTS_API_KEY=your-currents-api-key-here
+NEWS_PROVIDER=currents
+# Optional: EVENTS_CACHE_TTL_SECONDS=21600 (default: 6 hours)
 ```
-GEMINI_API_KEY=your-api-key-here
-```
 
-Without this, every other module still works — only the Copilot chat and Ledger OCR features will show a "no API key configured" message instead of live AI responses.
+- **`GEMINI_API_KEY`**: Powers AI Copilot chat, handwritten Ledger OCR, and live Global Risk news enrichment.
+- **`CURRENTS_API_KEY`**: Powers live macro news ingestion from Currents API (`currentsapi.services`).
+- If `CURRENTS_API_KEY` is omitted or `NEWS_PROVIDER=static`, the system seamlessly falls back to the curated static dataset without breaking.
 
 ### 3. Run the server
 
@@ -85,8 +100,8 @@ Visit **http://localhost:8000/** — the frontend is served directly by FastAPI,
 | `GET` | `/api/loan-score` | Credit score, gauge chart data, lender matches |
 | `POST` | `/api/loan-score/calculate` | Recalculate the rule-based score with custom inputs |
 | `GET` | `/api/scheme-finder` | Government MSME subsidy & scheme matches |
-| `GET` | `/api/global-risk` | Macro event impact matching against default business exposure |
-| `POST` | `/api/global-risk/match` | Match macro events against a custom business exposure profile |
+| `GET` | `/api/global-risk` | Macro event impact matching against default business exposure (live or static) |
+| `POST` | `/api/global-risk/match` | Match macro events against a custom business exposure profile (live or static) |
 | `POST` | `/api/chat` | AI Copilot chat (contextual MSME advice, multi-turn) |
 
 ### CSV upload format
@@ -101,14 +116,14 @@ date,description,amount
 - `amount`: positive = inflow, negative = outflow
 - Dates are parsed flexibly (`YYYY-MM-DD`, `DD-MM-YYYY`, `MM-DD-YYYY`), but `YYYY-MM-DD` is preferred
 
-For full algorithm details (the weighted moving average forecast, the loan-score weighting formula, and how business context gets serialized into the Gemini prompt), see [`working.md`](./working.md).
+For full algorithm details (the weighted moving average forecast, the loan-score weighting formula, provider pipeline, and context serialization), see [`working.md`](./working.md).
 
 ## Tech stack
 
-- **Backend:** FastAPI, Pydantic, Uvicorn, Python-Dotenv
-- **AI:** Google Gemini API (`gemini-3.6-flash` via `google.genai` SDK)
+- **Backend:** FastAPI, Pydantic, Uvicorn, Python-Dotenv, SQLite (TTL cache), Requests
+- **AI & Vision:** Google Gemini API (`gemini-3.6-flash` via `google.genai` SDK) for Copilot Chat, Vision OCR, and Macro Event Enrichment
 - **Frontend:** React (CDN), Chart.js, TailwindCSS
-- **Data:** Rule-based scoring engines + CSV parsing + live market APIs (Frankfurter, World Bank)
+- **Data & News APIs:** Currents News API (`currentsapi.services`), Frankfurter API, World Bank API, and deterministic Python rule engines
 
 ## Status
 
@@ -118,9 +133,16 @@ For full algorithm details (the weighted moving average forecast, the loan-score
 | Risk Radar | ✅ Built — CSV-derived & mock telemetry |
 | Loan Score | ✅ Built — interactive weighted scorer with live sliders |
 | Scheme Finder | ✅ Built — turnover & Udyam tier eligibility matching |
-| Global Risk Intel | ✅ Built — rule-based macro event matcher + Live Market Indicators (Frankfurter & World Bank APIs) |
+| Global Risk Intel | ✅ Built — dynamic Currents API + Gemini 3.6 Flash enrichment + SQLite Cache + Static Fallback + Live Market Indicators |
 | AI Copilot Chat | ✅ Built — multi-turn, Gemini 3.6 Flash integrated |
+
+### ⚠️ Licensing & Compliance Notice
+
+Currents API's free-tier terms have not been fully cleared for this application's specific production use case (AI-synthesized/derivative event impact summaries presented directly to end users). Direct written confirmation and licensing clearance from Currents API (`currentsapi.services`) is required prior to commercial launch.
+
+The provider-agnostic architecture (`NewsProvider` in `base.py`) was intentionally engineered so that Currents API can be swapped wholesale for another licensed news feed (e.g., Bloomberg, Reuters, NewsAPI, or GDELT) by changing only `backend/providers/currents_provider.py` without modifying `main.py` or the frontend. Additionally, data caching and storage terms (as implemented in `backend/event_cache.py`) must be verified separately from commercial-use terms prior to any public deployment.
 
 ---
 
 *Built for the MSME IDEA Hackathon 6.0.*
+
